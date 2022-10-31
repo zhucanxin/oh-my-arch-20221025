@@ -1,0 +1,1822 @@
+﻿Archlinux 2015.07.01 和 Windows7 双系统 安装教程
+
+
+　　提前在windows7下给Archlinux预留一个分区，大小最好在20G以上(根据自己硬盘情况分配)。
+
+第一步，安装前的准备
+
+　1.　从arch官网下载最新的ISO文件archlinux-2015.07.01-dual.iso（包含X86和X64双版本），地址 https://www.archlinux.org/download/
+
+　　使用Win32 Disk Imager 将镜像文件写入U盘（注意U盘文件会被全部删除），用U盘作为启动盘。
+
+　　建议读者先阅读：https://wiki.archlinux.org/index.php/Beginners%27_Guide_(%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87) 按照新手指南操作为准。
+
+  2.制作启动盘  (1)mkfs.fat  /dev/sdb   (2)dd if=目录/xx.iso   of=/dev/sdb   bs=4M
+
+第二部，开始安装工作
+
+1，硬盘分区
+
+　　根据自己喜欢的方案进行分区，建议分四个区
+
+　　/dev/sda1 用作boot分区（容量分配：1024M=1G）
+
+　　/dev/sda2 用作交换分区（容量分配：2048M=2G）
+
+　　/dev/sda3 用作root分区（容量分配：5G）
+
+　　/dev/sda4 用作home分区（容量分配：10G）
+
+　　具体操作如下：
+
+　　（1）：使用 fdisk -l 查看分区
+
+　　（2）：找到你分配的20G分区的符号，例如 /dev/sda7
+
+　　（3）：使用cfdisk进行分区，首先把/dev/sda7对应的容量删除掉，然后依次分配给/dev/sdax(x=1,2,3,4例如)
+
+2，安装文件系统
+
+　　（1）$ mkfs.ext4  /dev/sda1
+
+　　（2）$ mkfs.ext4  /dev/sda3
+
+　　（3）$ mkfs.ext4  /dev/sda4
+
+
+3，挂载分区
+
+　　（1）mount /dev/sda3 /mnt ：挂载根文件系统
+
+　　（2）mkdir /mnt/boot
+
+　　　　  mount /dev/sda1 /mnt/boot：挂载boot分区
+
+　　（3）swapon /dev/sda2：挂载交换分区
+
+　　（4）mkdir /mnt/home
+
+　　　　 mount /dev/sda4/ /mnt/home：挂载home目录
+
+4，配置更新源（可略过）
+
+　　推荐国内的用户选择mirrors.163.com，在校大学生推荐使用校园网的更新源（IPV6超给力！）
+
+　　具体步骤：
+
+　　（1）cd /etc/pacman.d
+
+　　（2）nano mirrorlist
+
+　　（3）将mirrors.ustc.edu.cn和mirrors6.ustc.edu.cn前面的#去掉
+
+　　（4）pacman -Syy
+
+5，连接网络
+
+　　（1）使用wifi-menu连接无线网络
+
+　　使用wifi-menu选择对应的无线网络，wifi-menu依赖 wpa_supplicant，diloag等包文件。没有安装的可以先安装.
+
+    　　  查看网络信息，检查网络有效性。从systemd 197开始，udev不再按照wlanX，ethX的方式分配网络接口的名字。
+
+　　（2）有线网络
+         若你是从其他发行版转来，请不要认为有线接口名字就是eth0，无线接口是wlan0。
+
+　　　　1）ip link：有线网络一般以[e]开头（例如：ens33），无线网络一般以[w]开头（例如wlps30），我的enp3s0。
+
+　　　　2）ping -c 3 www.baidu.com
+
+　　如果无法联网，ifconfig查看网卡，然后运行 dhcp #网卡，或者运行dhcpcd（hpcd守护进程）。
+
+　　虚拟机安装，请确保虚拟机服务都正常。例如，vmware NAT service等等
+
+
+　　（3）systemctl enable dhcpcd.service：开机自动运行 dhcpcd守护进程
+
+　　　　  systemctl start dhcpcd.service：运行dhcp服务
+
+　　（4））使用HTTP代理
+
+　　　　一个命令行命令搞定
+
+　　1） export http_proxy=http://username@ipaddr/port
+
+　　　　例如：export http_proxy=http://192/168.0.101:808/
+
+　    　安装完成后取消代理，同样一个命令搞定
+
+　　2）unset http_proxy
+
+6，安装base系统
+
+　　一般人而言只需要安装base 和base-devel
+根据2020年的使用情况来看,现在光安装以上不行,会提示找不到内核,根据wiki需要安装以下:   
+linux,linux-firmware.为了方便下一步安装和联网,还要一并安装 vim,zsh,dhcpcd,wpa-supplicant,dialog.
+
+　　具体步骤:
+
+　　（1）：pacstrap /mnt base base-devel linux linux-firmware vim zsh dhcpcd wpa-supplicant dialog  git 
+
+7，升级软件包到最新状态
+
+　　（1）pacman -Syu
+
+8，生成fstab文件（配置文件系统）
+
+　　（1）genfstab -p /mnt >> /mnt/etc/fstab
+
+9，根目录切换
+
+　　（1）arch-chroot /mnt
+
+10，更改系统时间
+
+　　请在同一个机器使用同一个硬件时钟模式，否则不同的操作系统可能会相互覆盖硬件时间导致时间错乱。
+
+　　（1）hwclock --systohc --utc
+　　推荐将硬件时间修改为UTC时间，这样各个linux系统都会完美协调，不过需要修改Windows操作系统。
+
+# hwclock --systohc --utc
+
+   开启网络对时功能：
+
+# timedatectl set-ntp true
+
+   要查看现在的时间，直接使用timedatectl命令就可以。
+
+下面是Windows下的修改：
+
+HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\TimeZoneInformation下新建一个DWORD类型的名字为RealTimeIsUniversal的项，并将值修改为十六进制的1。如果无效并且Windows是64位的话，新建一个QWORD类型的值或许有效。
+
+11，设定locale本地化
+
+　　（1）nano /etc/locale.gen
+
+　　　　选定你需要的本地化类型(移除前面的＃即可), 中文系统可以使用,（去掉#）:
+
+　　　　en_US.UTF-8 UTF-8
+
+　　　　zh_CN.GB18030 GB18030
+
+ 　　　  zh_CN.GBK GBK
+
+　　　　zh_CN.UTF-8 UTF-8
+
+　　　　zh_CN GB2312
+　　（2）运行locale-gen 
+
+　　（3）创建locale.conf文件
+
+　　　　不建议使用中文，这里会导致tty乱码，见https://wiki.archlinux.org/index.php/Archlinux%E4%B8%AD%E6%96%87%E5%8C%96#.E5.AE.89.E8.A3.85.E4.B8.AD.E6.96.87.E5.AD.97.E4.BD.93
+
+　　　 #nano /etc/locale.conf
+
+　　　　LANG=en_US.UTF-8:　
+
+　　（4）创建/etc/timezone
+
+　　　　Asia/Shanghai
+
+12，设置root用户密码并创建一个用户
+
+　　（1）passwd root
+
+　　（2）useradd -m -g users -G wheel -s /bin/bash arch64 :创建一个普通用户，属于users用户组，指定shell为bash，用户名为arch64
+    
+    （3）更改新建用户密码   passwd  用户名  ，然后输入密码。
+
+13，安装和配置grub启动器
+
+　　（1）pacman -S grub-bios
+　　（2）安装os-prober：pacman -S os-prober 
+　　（3）64位系统输入命令：grub-install --recheck  /dev/sda。32位系统输入命令：grub-install --target=i386-pc /dev/sda。
+         检测其他操作系统，这里是win7：os-prober。
+　　（4）grub-mkconfig -o /boot/grub/grub.cfg
+     (5)最近一次grub不能加上win系统，查资料，安装archlinux踩的坑，知，需要vim /boot/grub/grub.cfg  
+tips:grub2.06更新已进入官方源，本次更新有两个要注意的，1.如果您正在使用os-prober生成其他系统的引导项，grub不再自动启动os-prober，需要添加GRUB_DISABLE_OS_PROBER=false至/etc/default/grub配置文件，并重新运行grub-mkconifg。2/grub2.06现在会自动添加固件设置彩电，引导项目，无需手动创建。
+14，创建初始 ramdisk环境
+ 　  （1）mkinitcpio -p linux
+15，安装测试声卡环境
+　　（1）pacman -S alsa-utils
+　　（2）alsamixer :选择非静音模式
+　　（3）aplay /usr/share/sounds/alsa/Front_Center.wav：播放并聆听声音
+我装了alsa-utils，可是stardict和mocp都不不能放声音，后来查到原因是需要安装pulseaudio-alsa。使用aplay命令播放 
+。安装sox，在命令模式下使用play命令可以播放各种声音。
+16，开启自动管理网络
+    （1）dhcpcd  enp3s0
+
+　　（2）systemctl enable dhcpcd.service
+
+    （3)systemctl start dhcpcd.service
+
+17，设置主机名
+
+　　（1）echo ArchLinux > /etc/hostname
+
+18，卸载分区并重启
+
+　　（1）exit
+
+　　（2）exit
+
+　　（3）umount /mnt/home    umount/mnt
+
+　　（4）reboot
+
+　　到这里，结束基本系统的安装
+
+
+第三步，安装桌面环境
+
+　　X Windows 是基于网络的显示协议，提供了窗口功能，包含建立图形用户界面(GUI)的标准工具和协议。Xorg是X窗口系统11版本的开源实现，提供图形用户界面, 安装和配置请阅读Xorg。
+
+　　Wayland 是新的显示服务协议，Weston 是参考实现。目前还处于开发阶段，支持的程序很少。
+
+　　安装前，可以执行下面的命令先查看一下自己PC的显卡类型。
+
+　　$ lspci | grep VGA
+
+　　一个完整的Linux桌面环境一般由： X Windows + 登录管理器（例如：GDM，KDM）+ 桌面环境（GNOME、KDE、LXDE、Xfce等）或者窗口管理器。
+
+　　当然，也可以不使用登录管理器（Display manager），使用xorg-init包提供的startx和xinit命令来启动图形界面（startx是xinit命令的前端脚本文件）。startx和xinit将会解析用户目录下边的~/.xinitrc文件，如果该文件缺失则启动默认配置文件/etc/X11/xinit/xinitrc，进而启动x-server和x-client，同时启动Twm登录管理器，Xclock和Xterm（需要安装Twm，Xclock和Xterm）。
+
+　　相对于桌面环境，如果你嫌弃它们太过臃肿，希望最大化系统性能，你可以选择不安装完整的桌面环境而只是安装 窗口管理器（window managers）,然后加入需要的其他软件。大部分的桌面环境（DE）都可以换用其它的窗口管理（WM）。
+
+　　窗口管理器有动态窗口管理器，堆叠式窗口管理器，平铺式窗口管理器，它们在处理窗口的摆放上有所不同。
+
+1，Xorg的安装和配置
+
+　　xorg是图形界面的基础，不管是安装GNOME或者KDE，都必须基于Xorg。Arch默认情况下没有安装X环境。
+
+　　（1） pacman -S xorg
+
+　　（2） pacman -S xorg-twm　　　　：X环境的标签窗口系统
+
+　　（3） pacman -S xorg-xclock　　   ：X环境的时钟部件
+
+　　（4） pacman -S xterm　　　　　　：X环境的终端模拟器
+
+　　（5） pacman -S xorg-xinit　　　　：X环境的初始化程序
+
+　　（6） pacman -S xorg-server-utils ：X服务的依赖工具包
+
+　　（7） pacman -S mesa　　　　　　：OpenGL图形硬件加速规范的开源实现
+
+　　（8） pacman -S gvfs gvfs-afc　　  ： thunar文件管理器插件，可以自动挂载U盘设备等，建议启用
+
+ 2，桌面环境安装（Desktop enviromnet）
+
+　　 桌面环境(DE): 在X之上并与其共同运作，提供完整的功能和动态图形界面。桌面环境通常提供图标、小程序（applets）、窗口、工具栏、文件夹、壁纸、应用程序和拖放等功能。流行的桌面环境有GNOME、KDE、LXDE、Xfce等。
+
+2.1安装 GNOME3 桌面环境
+
+　　　　　安装GNOME3 可以参考官方wiki地址https://wiki.archlinux.org/index.php/GNOME_%28%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87%29
+
+　　　　（1） $pacman -S gnome　　：pacman会自动安装 gdm（显示管理器）
+
+　　　　这一步骤会下载很多gnome相关的包，其中gdm作为启动管理器（显示管理器）。
+
+　　　　（2）如果你想登录后自己手动启动桌面环境，$nano ~/.initrc，添加内容　exec gnome-session，这样在用户登录后，使用命令： startx启动桌面环境。
+
+　　　　　　 如果你想开机遍自动启动桌面环境，亲设置gdm服务开机运行。使用命令： systemctl enable gdm.service
+
+　　　　（3）虚拟机用户
+
+　　　　　　【注意】如果你使用虚拟机安装，例如VMware或者VirtualBox，在使用startx之后，可能会一直卡死在 Loading extension GLX ......上，原因是arch更新后与vmware的开源驱动不兼容导致的。
+
+　　　　　　可以使用startx -- -extension GLX来关闭GLX。
+
+　　　　　　也可以卸载vmware驱动，装上vesa通用驱动。
+
+　　　　　　$ pacman -R xf86-video-vmware
+
+　　　　　　$ pacman -S xf86-video-vesa　
+
+　　　　　　安装vmtools开源版本
+
+　　　　　　1）$ pacman -S net-tools gtkmm：安装依赖
+
+　　　　　　2）$ pacman -S open-vm-tools open-vm-tools-modules：vmtools 开源版本的安装
+
+　　　　　　3）$ cat /proc/version > /etc/arch-release：vmtools 配置的改变
+
+　　　　　　4）$ nano /usr/lib/systemd/system/vmtooled.service：vmtoolsd 60 秒挂起 bug 的修复）
+
+　　　　　　　　[Service] && KillSignal=SIGKILL：发送 SIGKILL 代替 SIGTERM
+
+　　　　　　5）$ systemctl enable vmtoolsd.service：vmtoolsd 服务的开机自启动设置
+
+　　　　　　6）$ reboot：重启后查看自适应屏幕是否正常，拖动文件到虚拟机是否工作
+
+　　　　　　也可安装自带的vmware tools：
+
+　　　　　　1）编辑vmware配置，将CD-ROM文件设置为VMware自带的linux.iso文件
+
+　　　　　　2）挂载CD-ROM: $ mount /dev/cdrom /mnt/cdrom 
+
+　　　　　　3）将cdrom内容拷贝出来，执行 ./vmtools-install.pl
+
+　　　　　  4）设置启动目录
+
+2.2，安装KDE桌面
+
+　　　　　　如果你觉得KDE比较华丽，也可选择KDE。安装方式可以是直接装kde或者安装kde-meta
+
+　　　　　　完整安装 直接一个命令 : $ pacman -S kde
+
+　　　　　　最小系统安装： $ pacman -S kdebase
+
+　　　　　　语言包安装： $ pacman -S kde-l10n-yourlanguagehere
+
+2.3,安装 XFCE4桌面环境
+
+　　　　　　简洁，轻快，不解释！
+
+　　　　　　pacman -S xfce4
+
+　　　　　　·（# pacman -S xfce4）
+　　　　　　·（# pacman -S slim slim-themes archlinux-themes-slim：安装图形登入器及其主题）
+　　　　　　·（# pacman -S xdg-user-dirs：安装用户目录管理器）
+　　　　　　·（# nano /etc/skel/.xinitrc：  加入exec startxfce4 自启动设置）
+　　　　　　·（# cp /etc/skel/.xinitrc /home/vm/.xinitrc：复制配置文件到用户主目录）
+　　　　　　·（# chmod +x /home/vm/.xinitrc：赋予此文件可执行权限）
+　　　　　　·（# nano /etc/slim.conf && current_theme archlinux：修改图形登入器的主题）
+　　　　　　·（# systemctl enable slim.service：slim 图形登入器服务的自启动）
+3，将用户加入sudo组。   #echo  "用户名  ALL=(ALL) ALL" >> /etc/sudoers
+   要想在每次输入的时候不输入当前用户的密码可以这样设定：#echo  "用户名  ALL=(ALL) NOPASSWD=ALL" >> /etc/sudoers
+也可以￥ su - 输入root的密码。
+
+
+第四步  有关配置
+1，添加aur源。  
+先添加中国地区的源：
+编辑 /etc/pacman.d/mirrorlist ，在文件的最顶端添加
+Server = https://mirrors.ustc.edu.cn/archlinux/$repo/os/$arch
+Server = https://mirrors.163.com/archlinux/$repo/os/$arch
+在 /etc/pacman.conf 文件末尾添加两行：
+[archlinuxcn]
+Server = https://mirrors.ustc.edu.cn/archlinuxcn/$arch
+然后请安装keys  :pacman -S  archlinuxcn-keyring 包以导入 GPG key。
+同步系统：pacman -Syu
+
+2, 安装yaourt。
+
+3，装浏览器：  pacman -S firefox  google-chrome 
+
+4，网易云音乐   netease-cloud-music
+
+5，archlinux挂载ntfs写权限。   安装  ntfs-3g  。
+
+6，每次挂载ntfs都要密码咋弄？
+编辑/usr/share/polkit-1/actions/org.freedesktop.Udisks2.policy
+把与id="org.freedesktop.udisks2.filesystem-mount-system"对应的
+<allow_active>auth_admin_keep</allow_active>改为
+<allow_active>yes</allow_active>
+
+7，安装中文输入法  ibus ibus-qt  ibus-sunpinyin  ibus-table  ibus-libpinyin(比sunpinyin要好点)其实还是sunpinyin最好用，其他几个拼音输入法会在终端里导致光标消失也可以打开双拼。
+ibus-table-chinese 感觉海风五笔在标点上好用一点。
+
+  安装好后，如果还是无法切出搜狗输入法，那么就 在~/.xprofile 文件中添加如下内容：
+
+           export GTK_IM_MODULE=ibus
+    
+           export QT_IM_MODULE=ibus
+    
+           export XMODIFIERS="@im=ibus"
+
+保存并退出后，注销重新登陆系统就能切换了。
+
+在会话中设置  ibus-daemon  自动启动。
+
+搜狗输入法安装的方法
+
+1.控制台分别输入以下指令
+
+sudo pacman -S fcitx
+
+sudo pacman -S fcitx-configtool
+
+sudo pacman -S fcitx-gtk2 fcitx-gtk3
+
+sudo pacman -S fcitx-qt4 fcitx-qt5
+
+sudo pacman -S fcitx-sogoupinyin
+2.添加输入法配置文件
+sudo nano ~/.xprofile
+3.添加以下内容
+export GTK_IM_MODULE=fcitx
+
+export QT_IM_MODULE=fcitx
+
+export XMODIFIERS="@im=fcitx"
+ 
+在.xinitrc里添加  fcitx &，以确保在开机时启动
+
+vim打开windowd下的txt文件时出现M标志，那是因为linux和window文件对换行符号的设置不一样，最好的办法是安装dos2unix，进行转换，实验后非常好。他有两个命令：dos2unix和unix2dos。
+安装字典                  pm xfce4-dict
+安装arch-wiki-man本地wiki手册
+pm arch-wiki-man
+如何在终端中使用 Arch Wiki ？
+它有着简易的接口且易于使用。想要搜索，只需要运行 awman 加搜索项目。一般语法如下所示。
+$ awman Search-Term
+安装stardict    pm stardict   
+从网上下载词典，   搜索   “星际译王stardict词典集（内含9本常用词典）.tar.gz ”将每个词典的文件夹存放在/usr/share/lib
+http://stardict-4.sourceforge.net/index_en.php
+https://stardict-4.sourceforge.net/index_en.php
+星际译王本地词典使用方法：
+将文件夹里的文件（后缀如.dict.dz,.dix,.ifo.syn）全部复制到
+/usr/share/stardict/dic  或  ~/.stardict/dic
+其中一个就可以了（注意，不要如“星际译王词典：金山词霸2007简明英汉字典_stardict-powerword2007_pwqec-2.4.2”这样的多层文件夹）。
+然后打开stardict程序，右下角“管理字典”(manage dictionaries)，分别将“Dict 
+List”和“Manage Dict”中想要首先查的字典置顶即可。
+ 词典下载网址http://download.huzheng.org/zh_CN/  真人发音也在上面
+https://blog.csdn.net/yuguanquan1990/article/details/25598179?utm_medium=distribute.pc_relevant.none-task-blog-2~default~baidujs_baidulandingword~default-4-25598179-blog-41893029.pc_relevant_3mothn_strategy_recovery&spm=1001.2101.3001.4242.3&utm_relevant_index=7
+安装moc播放器     pm moc
+安装火狐        pm   firefox  firefox-i18n-zh-cn
+安装focuswriter
+安装wget    pm wget
+安装美术字小软件 figlet
+安装印象笔记软件  nixnote，我的账户zhucanxin1@163.com，密码daxiang。另一个软件turtl。在yaourt里可以安装,user:304142582@qq.com, password :22257—-a*d
+安装gimp       pm gimp
+安装视频解码器       pm gst-libav gst-plugins-bad gst-plugins-base gst-plugins-ugly
+安装播放器               pm mplayer
+查看pdf的软件:evince
+终端下的文件管理器ranger,教程http://www.mikewootc.com/wiki/linux/usage/ranger_file_manager.html
+酷狗音乐   pm kwplayer
+音乐播放器软件deadbeef，效果不错。
+安装flashplayer     pm flashplayer
+好用的截图软件,可以停留在桌面  flameshot,启动的快捷键命令是falmeshot gui;
+百度网盘 baidupcs-go 但使用的命令是baidupcs.可以查看帮助. 
+图片查看软件         pm ristretto   
+摄像头软件：茄子cheese
+安装office    ya wps-office     libreoffice libreoffice-fresh-zh-CN  scribus,wps安装完语言包后还需要在设置菜单栏里设置一下。
+安装vi        pm vi
+安装zsh       pm zsh zsh-autosuggestions(历史命令补全命令t 配置 GPG 秘钥
+
+foolish_hungry
+2019.01.17 17:19:48
+字数 109
+阅读 1,662
+1.安装 gpg
+
+brew install gpg
+2.创建gpg-ID
+
+gpg --full-generate-key
+根据提示填写配置信息, 到第三步选择有效期时, 输入0, 指的是永久有效, 最后一步, 填写密码可以不用写
+
+3.查看创建信息
+
+gpg --list-keys
+
+//
+pub
+uid
+sub
+展示了刚才创建的信息
+5.将gpg 公钥添加在git仓库
+
+gpg --armor --export pub GPG-ID
+复制内容, 添加到此处GitHub GPG Keys
+
+4.git 全局配置签名
+
+git config --global user.signingkey GPG-ID
+5.git commit -s 参数来开启 GPG key
+可以在git 仓库看到)
+安装deb转化为archpkg的软件debtap
+aur/debtap 3.4.2-1 (258) (2.75)
+    A script to convert .deb packages to Arch Linux packages, focused on accuracy. Do not use it to
+    convert packages that already exist on official repositories or can be built from AUR!
+安装和启动蓝牙设备  
+pm bluez bluez-utils blueman,启动服务,systemctl enable bluetooth,管理蓝牙,blueman-manager
+pm bluez-utils bluezdevil
+pm bluez-utils 
+pm -s  bluez de vil
+pm -s  bluez 
+man bluez
+systemctl enable bluetooth
+pm blueman
+blueman-manager
+
+任务计划                  pm gnome-schedule
+闹钟     pm alarm-clock
+两个很有意思的闹钟软件1.wmtimer,这个可以显示时间,并播放闹钟,倒计时.2.wmclockmon,这个更加高级,可以制作闹钟,日历计划,启动命令是wmclockmon -w,这样会有界面出来,
+配置文件有两个,一个是wmclockmon-config,一个是wmclockmon-cal,会在图形界面进行配置,并形成配置文件.教程:http://www.linuxcertif.com/man/1/wmclockmon-cal/
+安装网速显示插件       pm xfce4-netload-plugin 
+桌面小工具集合utools,
+程序员学习资料整理工具mybase
+安装钉钉软件方便手机与电脑传输资料  yaourt dingtalk-electronic
+用命令打开和关闭触摸屏:sudo modprobe psmouse;sudo modprobe -r psmouse;
+文件搜索                      pm catfish
+全能下载工具  motrix
+其他小程序 
+             系统基本情况screenfetch
+            小猫眯  oneko
+             树形浏览文件结构  tree
+            计算器 bc
+安装印象笔记版本,nixnote2,但是要输入中文必须将三行命令放到.xinitrc里面,xfce之前才可以.
+focuswriter   在Linux上使用FocusWriter进行无干扰写作
+一个在终端下的ppt程序, yaourt -S tpp ,教程地址  https://www.cnblogs.com/fityme/archive/2013/02/04/2892185.html
+此外，安装完tpp之后强烈建议再把figlet包装上。用来支持tpp的--huge选项，效果如下图：
+终端下的浏览器  elinks    w3m
+第五部分 备份和修复系统
+系统备份  
+1. 备份系统
+首先成为root用户：
+$ sudo su
+
+然后进入文件系统的根目录(当然，如果你不想备份整个文件系统，你也可以进入你想要备份的目录，包括远程目录或者移动硬盘上的目录)：
+# cd /
+
+下面是我用来备份系统的完整命令：
+# tar cvpzf backup.tgz --exclude=/proc --exclude=/lost+found --exclude=/backup.tgz --exclude=/mnt --exclude=/sys --exclude=/run/media  /
+
+让我们来简单看一下这个命令：
+
+“tar”当然就是我们备份系统所使用的程序了。
+
+“cvpfz”是tar的选项，意思是“创建档案文件”、“保持权限”(保留所有东西原来的权限)、“使用gzip来减小文件尺寸”。
+
+“backup.gz”是我们将要得到的档案文件的文件名。
+
+“/”是我们要备份的目录，在这里是整个文件系统。
+
+在 档案文件名“backup.gz”和要备份的目录名“/”之间给出了备份时必须排除在外的目录。有些目录是无用的，例如“/proc”、“/lost+ found”、“/sys”。
+当然，“backup.gz”这个档案文件本身必须排除在外，否则你可能会得到一些超出常理的结果。如果不把“/mnt”排 除在外，那么挂载在“/mnt”上的其它分区也会被备份。
+另外需要确认一下“/media”上没有挂载任何东西(例如光盘、移动硬盘)，如果有挂载东西， 必须把“/media”也排除在外。
+
+有人可能会建议你把“/dev”目录排除在外，但是我认为这样做很不妥，具体原因这里就不讨论了。
+
+执行备份命令之前请再确认一下你所键入的命令是不是你想要的。执行备份命令可能需要一段不短的时间。
+
+备份完成后，在文件系统的根目录将生成一个名为“backup.tgz”的文件，它的尺寸有可能非常大。现在你可以把它烧录到DVD上或者放到你认为安全的地方去。
+
+在备份命令结束时你可能会看到这样一个提示：’tar: Error exit delayed from previous errors’，多数情况下你可以忽略它。
+
+你还可以用Bzip2来压缩文件，Bzip2比gzip的压缩率高，但是速度慢一些。如果压缩率对你来说很重要，那么你应该使用Bzip2，用“j”代替命令中的“z”，
+并且给档案文件一个正确的扩展名“bz2”。完整的命令如下：
+# tar cvpjf backup.tar.bz2 –exclude=/proc –exclude=/lost+found –exclude=/backup.tar.bz2 –exclude=/mnt –exclude=/sys --exclude=/run/media /
+
+2. 恢复系统
+
+在进行恢复系统的操作时一定要小心！如果你不清楚自己在做什么，那么你有可能把重要的数据弄丢，请务必小心！
+
+接着上面的例子。切换到root用户，并把文件“backup.tgz”拷贝到分区的根目录下。
+
+在 Linux中有一件很美妙的事情，就是你可以在一个运行的系统中恢复系统，而不需要用boot-cd来专门引导。当然，如果你的系统已经挂掉不能启动了， 
+你可以用Live CD来启动，效果是一样的。你还可以用一个命令把Linux系统中的所有文件干掉，当然在这里我不打算给出这个命令！
+
+使用下面的命令来恢复系统：
+# tar xvpzf backup.tgz -C /
+
+如果你的档案文件是使用Bzip2压缩的，应该用：
+# tar xvpjf backup.tar.bz2 -C /
+
+注意：上面的命令会用档案文件中的文件覆盖分区上的所有文件。
+
+
+增量备份命令  
+# tar cvpzf backup.tgz -g  --exclude=/proc --exclude=/lost+found --exclude=/backup.tgz --exclude=/mnt --exclude=/sys --exclude=/run/media  /
+
+恢复系统我的目前是  # tar xvpzf /home/manjaro
+     
+
+基本中文支持
+
+要正确显示中文，必需设置正确的locale并安装合适的中文字体。
+locale设置
+安装中文locale
+
+Linux中通过locale来设置程序运行的不同环境。常用的中文locale有（最直观的分别是可显示字的数量）：
+
+zh_CN.GB2312
+zh_CN.GBK
+zh_CN.GB18030
+zh_CN.UTF-8
+zh_TW
+zh_TW.UTF-8
+
+推荐使用UTF-8的locale。对于glibc（>=2.3.6），需要修改/etc/locale.gen文件来设定系统中可以使用的locale（取消对应项前的注释符号「#」即可）：
+
+en_US.UTF-8 UTF-8
+zh_CN.UTF-8 UTF-8
+
+然后执行locale-gen命令，便可以在系统中使用这些locale。可以通过locale命令来查看当前使用的locale：亦可通过locale -a命令来查看目前可以使用的locale；
+启用中文locale
+
+Arch Linux中，通过/etc/locale.conf文件设置全局有效的locale：
+
+LANG=en_US.UTF-8
+
+警告: 不推荐在此设置中文locale，会导致tty乱码；在tty下亦可显示和输入中文，但需要安装cce、zhcon或fbterm；
+提示： 如欲为内核打中文补丁，可参见[1]；
+
+对于特定用户，还可以在~/.bashrc、~/.xinitrc或~/.xprofile中设置自己的用户环境。不同之处在于：
+
+    .bashrc: 每次终端登录时读取并运用里面的设置。
+    .xinitrc: 每次startx启动X界面时读取并运用里面的设置
+    .xprofile: 每次使用gdm等图形登录时读取并运用里面的设置
+
+单独在图形界面启用中文locale
+
+不推荐/etc/locale.conf使用全局中文locale，会导致tty乱码。
+
+如前面所说，可以在~/.xinitrc或~/.xprofile单独设置中文locale。添加如下内容到上述文件最前端注释之后（如果不确定使用哪个文件，可以都添加）：
+
+export LANG=zh_CN.UTF-8
+export LANGUAGE=zh_CN:en_US
+export LC_CTYPE=en_US.UTF-8
+
+注意: 若欲将此三行放至~/.xinitrc中，请注意将其放在exec _example_WM_or_DE_行之前；此为常见错误；
+注意: 该方法适用于slim或者无登陆管理器的用户，GDM和KDM用户可以在Gnome或KDE设置中选择语言。
+中文字体
+安装字体
+
+除了设置好locale，还需要安装中文字体。
+
+常用的免费（GPL或兼容版权）中文字体有：
+
+    wqy-microhei    wqy-microhei-lite    wqy-bitmapfont   wqy-zenhei    ttf-arphic-ukai    ttf-arphic-uming    adobe-source-han-sans-cn-fonts
+
+系统字体将默认安装到/usr/share/fonts。如果没有root权限或只打算自己使用某些字体，可以直接复制这些字体到~/.fonts目录（或其子目录）下面，并把该路径加入/etc/fonts/local.conf中。具体参见后面章节。
+
+另见：[2]
+中文字体配置
+
+安装好字体以后，字体显示效果可能不堪入目。需要对fontconfig和某些程序进行调整。
+
+fontconfig是字体选择的接口，你可以用它去控制单个字体或者字体族的属性，比如hint或者autohint。
+
+另外每个程序中可以设置不同的默认字体，比如Arial或者Tohamo。这些字体的属性由fontconfig控制。所以当字体显示不满意时，首先需要判断是调整字体的种类还是字体的属性。
+fontconfig设置
+
+fontconfig的设置文件是~/.fonts.conf（用户）或者/etc/fonts/conf.d（全局）。推荐修改前者。
+
+关于中文字体设置，参见：Fonts (简体中文)、Font configuration (简体中文)。
+
+Font Configuration (简体中文)/中文字体配置范例提供了中文字体fontconfig示范。
+
+另见：
+
+    fontconfig用户手册
+    Debian中文支持
+    [3]
+
+中文输入法
+
+常用的中文输入法平台有IBus、fcitx和scim。具体安装配置参见各自条目。
+注意: scim现在维护滞后，不推荐使用。
+终端中文支持
+引导中文支持
+
+请见 grub2
+终端中文支持
+
+请见 fbterm
+终端中文输入支持
+
+请参见 fbterm
+软件中文化配置
+桌面环境
+
+除KDE外，各大桌面环境已经包含了中文语言文件。KDE的中文包需要额外安装：kde-l10n-zh_cn
+Firefox
+
+简体中文用户安装 firefox-i18n-zh-cn
+
+繁体中文用户安装 firefox-i18n-zh-tw
+Libreoffice
+
+简体中文用户安装 libreoffice-fresh-zh-CN 或 libreoffice-still-zh-CN
+
+繁体中文用户安装 libreoffice-fresh-zh-TW 或 libreoffice-still-zh-CN
+Calligra (原 Koffice)
+
+简体中文用户安装 calligra-l10n-zh_cn[broken link: replaced by calligra]
+
+繁体中文用户安装 calligra-l10n-zh_tw[broken link: replaced by calligra]
+PDF阅读器
+
+多数PDF查看器已经支持中文。但也有部分需要安装额外的语言包：
+
+Arcobat： AUR版本的中文包为acroread-chsAUR[broken link: archived in aur-mirror]、acroread-chtAUR[broken link: archived in aur-mirror]。
+
+okular、evince等poppler相关的阅读器及Inkscape、Krita、MyPaint等可以处理pdf的图像处理工具：需要安装 poppler-data
+Java
+
+对于Sun Java用户，在/opt/java/jre/lib/fonts中建立fallback目录，然后链接或拷贝若干中文字体到该目录就能使java程序正确显示中文。例如，在已经安装jre和ttf-fireflysung 的情况下，使用root权限执行下面的命令即可：
+
+ln -s /usr/share/fonts/TTF/odosung.ttc /opt/java/jre/lib/fonts/fallback/
+cd /opt/java/jre/lib/fonts/fallback/
+mkfontdir
+mkfontscale
+
+如果是openjdk6，需要复制/usr/lib/jvm/java-6-openjdk/jre/lib/fontconfig.properties.src到/usr/lib/jvm/java-6-openjdk/jre/lib/fontconfig.properties，并修改这个文件中的字体位置，因为文泉驿的地址指错了。
+vim
+
+如果locale是utf8编码，用vim打开其他中文编码的文件可能会乱码。需要在~/.vimrc做如下设置：
+
+set fileencodings=utf8,cp936,gb18030,big5
+
+中文视频字幕
+Mplayer
+
+要使mplayer正确显示字幕，关键是要使字幕文件的编码和mplayer config里使用的编码相一致。字幕文件编码为gbk，则subcp=cp936;字幕文件编码为utf-8,则subcp=utf8。如果字幕文件编码为utf-8,而设置成subcp=cp936,则会出现部分乱码的情况。另一种更为简单的方法是设置成subcp=enca:zh:ucs-2，由enca负责字幕的编码显示问题。
+
+修改~/.mplayer/config：
+
+font='文泉驿正黑'
+subcp=enca:zh:ucs-2
+
+使用下面的命令手动加载字幕：
+
+mplayer xxx.avi -sub xxxxx.srt
+
+如果使用图形前端（比如SMPlayer），会更简单一些，只要在设置对话框里设定缺省字幕编码和字体即可。
+xine
+
+xine也可以显示中文字幕，但需要制作自己的中文字体。具体可以参考：[4]。
+gstreamer
+
+在totem 1.4.0，由于使用gstreamer0.10，应该是可以自动加载同名的srt字幕。
+LaTeX
+
+首先需要安装CJK包，然后需要安装合适的字体。具体可以参考：[5]。
+其他中文化问题
+MP3文件标签乱码
+
+对于用gstreamer做后端的播放器，如Rhythmbox,totem，设置如下的环境变量后即可正确读取mp3中GBK编码的ID3 tag：
+
+export GST_ID3_TAG_ENCODING=GBK:UTF-8:GB18030
+export GST_ID3V2_TAG_ENCODING=GBK:UTF-8:GB18030
+
+对于Beep media player，可以在pefenrence->plugins->media中选中MPEG Audio plugin然后点击下方的Penfenrences,此时会出现一个对话框，选择title，将Disable ID3v2和Convert non-UTF8 ID3 tags to UTF8前的选择框选中。然后在ID3 encoding中填入 gbk。这样bmp就能正确显示GBK编码的ID3 tag。
+
+Quod Libet播放器支持tag编辑及设置ID3v2编码。可以在~/.quodlibet/config中设置
+
+id3encoding = gbk
+
+注意：Quod Libet默认支持utf8编码
+
+最为彻底的解决方法为将编码为gbk的id3 tag转化为utf8编码。首先安装mutagen，然后利用下面的命令转换：
+
+mid3iconv -e gbk XXX.mp3
+
+Windows分区下的中文文件名乱码
+
+一般是因为挂载的字符集与locale不同，可以修改/etc/fstab（如果不了解请仔细阅读相关文档）。如果locale是utf8，修改为：
+
+/dev/sdxx /media/win ntfs defaults,iocharset=utf8 0 0
+
+如果locale是GBK，则应该是：
+
+/dev/sdxx /media/win ntfs defaults,iocharset=cp936 0 0
+
+Samba乱码
+
+用Arch作为Samba服务器时，在/etc/samba/smb.conf中加入下面一行就可以解决Windows客户端乱码问题：
+
+unix charset=gb2312
+
+ftp乱码
+
+很多ftp站点是GBK编码。如果使用UTF8的locale，下载的文件名可能会乱码。对于lftp，在.lftp/rc下做如下设置：
+
+set ftp:charset "gbk"
+set file:charset "UTF-8"
+
+对于gftp，可以在.gftp/gftprc中做如下设置即可：
+
+remote_charsets=gb2312
+
+但下载下来的文件名仍然是乱码，需要打补丁编译。补丁地址为: http://www.teatime.com.tw/%7Etommy/linux/gftp_remote_charsets.patch
+翻译软件
+
+目前有两个选择：星际译王或者goldendict，这两者默认都不带字典，所以安装完软件后，需要下载相应字典。 下面介绍安装星际译王： 先安装stardict软件包：
+
+pacman -S stardict
+
+stardict默认是不带字典的，需要去[6]下载字典安装。安装方法如下：
+
+tar -xjvf testdict.tar.bz2
+mv testdict /usr/share/stardict/dic
+
+安装TTS发音，stardict默认是不带发音的，需要下载。下载安装方法如下：
+目前，由于很多的原来的网站都下载不了了，我已经将原来的词典和语音文件上传到我的百度网盘，13504068862,22257a，随时可以自己下载，t440p笔记本里的系统里也有，当然下次要把这个文件备份好。
+wget http://stardict-3.googlecode.com/files/WyabdcRealPeopleTTS.tar.bz2
+tar -xjvf WyabdcRealPeopleTTS.tar.bz2
+mv WyabdcRealPeopleTTS /usr/share
+
+重新启动stardict
+
+推荐使用：
+
+    xdict英汉字典
+    Merriam Webster 10th dictionary
+    牛津现代英汉双解辞典(正体中文)
+    朗道英汉词典(正体中文)
+
+实验而已
+
+ArchLinux XFCE用快捷键调节音量
+amixer set Master toggle
+你如果使用的是标准的XF86Audio 快捷键，在在终端输入以下内容：
+xfconf-query -c xfce4-keyboard-shortcuts -p /commands/custom/XF86AudioRaiseVolume -n -t string -s "amixer set Master 5%+"
+xfconf-query -c xfce4-keyboard-shortcuts -p /commands/custom/XF86AudioLowerVolume -n -t string -s "amixer set Master 5%-"
+xfconf-query -c xfce4-keyboard-shortcuts -p /commands/custom/XF86AudioMute -n -t string -s "amixer set Master toggle"
+若 amixer set Master toggle 不工作，尝试使用调节PCM直接调节音量(amixer set PCM toggle) 。
+重大发现:设置toggle后,有时候快捷键还是不好用,因为按了之后会同时将master和speaker设为M,后来发现如果没有声音时,再按一下"<"或者">",就自动跳到speaker上了,有声音了,下次按一下快捷键也开始起作用了.
+其他的内容请参考wiki，https://wiki.archlinux.org/index.php/Xfce_(%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87)#ALSA
+
+crontab安装
+安装 cronie  设置自启动 systemctl enable cronie.service  启动 systemctl start cronie.service
+
+双系统时间不一致的解决
+两个系统的时间不一致，改了一边的，另一边的就会错乱，好像相差了8小时。
+感谢谷歌大神，找到了解决办法， 记录如下：
+先说解决办法
+一种就是让Windows把硬件时间当作UTC，与Linux/Unix/Mac保持一致。另一种就是让Linux/Unix/Mac把系统时间当作本地时间，与Windows保持一致。 设置如下：
+---==很拽的分割线==-------=============------很拽的分割线------======-----
+一 在Windows下进行如下修改：
+在 注册表项：HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\TimeZoneInformation\
+下中添加一项数据类型为REG_DWORD，名称为RealTimeIsUniversal，值设为1 的键值。
+或者直接使用下如下批处理进行修改：
+------------------------------------------------------------------------
+@echo off
+color 0a
+Reg add HKLM\SYSTEM\CurrentControlSet\Control\TimeZoneInformation /v RealTimeIsUniversal /t REG_DWORD /d 1
+echo.
+echo 已让Windows识别存贮在主板CMOS内的时间为格林威治标准时间（GMT）,即系统根据CMOS时间和设置的时区来确定当前系统的时间。
+echo.
+pause
+
+
+
+
+vim 的自定义快捷键设置
+原创sahusoft 最后发布于2009-07-24 13:46:00 阅读数 10379  收藏
+展开
+因为 vim 本身功能强大,可以使用很多指令,且可以在执行的同事调用外部命令,因此这让我们自定义工具,操作提供了可能!今天我就以编译 和执行 java 为例,简单说一下vim 如何自定义快捷键
+首先是指令
+vim 定义快捷键的指令map ,与之相对应的 unmap 是取消已定义的快捷键的指令!
+第二步
+如果我们要编译 一个名为 Hello.java的文件怎么做呢
+Esc 进入命令模式 输入 :!javac Hello.java
+: 是指令输入的提示符表示以下输入的是vim 的指令
+! 是标明这之后的操作,是编辑器以外的命令
+javac Hello.java 就不用说了
+但是既然我们要把这个作为快捷键调用的操作使用 ,那么文件名的命名上 必然要具备其通配性,不能太限定话!
+这里 我们使用的是 通配符 %
+所以整个指令操作过程就是 先按Esc 然后输入 :!javac % 然后回车
+接下来 我们就可以定义快捷键了 我定义的是 F12 因此 其指令就是
+:map <F12> :!javac %
+这样执行下 发现有问题…什么问题…我们一开始如果不在命令模式下 …这个只能执行不了….所以我们得先输入 Esc,但是我们在map 时,只要一按Esc 就退出了输入状态 该怎么办呢 ?答案是使用 <Esc> 字符替代操作,那么指令就变成
+:map <F12> <Esc>:!javac %
+回车确定过后 按下F12 指令就出现在屏幕上…可是我还是想让他直接执行啊 …既然 <Esc>可以代替 Esc 的操作,那什么可以代替回车操作呢 ? 答案是 <CR> 由此我们整条编译的快捷操作完成了:
+:map <F12> <Esc>:!javac %<CR>
+
+接下来是定义执行指令 Ctrl+F12执行:
+:map <C-F12> <Esc>:!java %<CR>
+看到这里 大家应该已经想到这个问题了,java 执行是不可以带扩展名的 ,更何况当前扩展明是 .java,那么有什么办法 让他不带扩展名呢 ? 答案是 %< ,%<表示的就是不带扩展名的文件名,那么整条执行语句就成了:
+:map <C-F12> <Esc>:!java %<<CR>
+
+这样快捷键就可以使用了 … 是不是很方便呢  ?
+
+另附上其他特殊符号:
+<Tab> 制表符
+<EOL> 行尾
+<BS> 退格
+
+————————————————
+
+版权声明：本文为CSDN博主「sahusoft」的原创文章，遵循 CC 4.0 BY-SA 版权协议，转载请附上原文出处链接及本声明。
+
+原文链接：https://blog.csdn.net/sahusoft/article/details/4376682
+
+sudo设置
+     解决了困扰我好久的一个问题。一使用sudo就不能使用用户的环境变量，一使用crontab就使用vi编辑器。
+    （1）环境变量
+        当前用户的环境变量不会应用到sudo启动的程序，除非使用-E选项：
+       $ sudo -E pacman -Syu
+       如果经常需要这样做，可以在~/.bashrc（或其他shell配置文件）中加入命令别名：
+      alias sudo="sudo -E"
+       在/etc/sudoers中添加以下内容作用相同：
+       Defaults !env_reset
+       可以把需要传递环境变量的命令设置到env_keep：
+      Defaults env_keep += "ftp_proxy http_proxy https_proxy no_proxy"
+    (2）传递命令别名
+       当前用户的命令别名不会应用到sudo。如果需要这样，只需在~/.bashrc或者/etc/bash.bashrc中加入：
+      alias sudo='sudo '
+修改updatebd配置文件使ubuntu的locate命令可搜索挂载的硬盘中文件
+转载Jimmy Song 最后发布于2013-03-02 16:19:00 阅读数 1568  收藏
+展开
+locate命令用于查找文件, 它比find命令的搜索速度快, 它需要一个数据库, 这个数据库由每天的例行工作
+
+(crontab)程序来建立. 当们建立好这个数据库后, 就可以方便地来搜寻所需文件了. 即先运行updatedb
+
+(无论在那个目录中均可, 可以放在crontab中)后在/var/lib/slocate/下生成slocate.db数据库即可快速查找.
+
+在命令提示符下直接执行updatedb命令即可.
+
+例如查找相关字issue:
+
+$ locate issue
+
+/etc/issue
+
+/etc/issue.net
+
+/usr/man/man5/issue.5
+
+/usr/man/man5/issue.net.5
+
+
+它默认没有扫描外接的移动硬盘或者挂载在/media下的其他分区. 以/etc/updatedb.conf文件为例, 内容如下:
+-------------------------------------------------------------------------
+
+PRUNE_BIND_MOUNTS="yes"
+
+# PRUNENAMES=".git .bzr .hg .svn"
+
+PRUNEPATHS="/tmp /var/spool /media"
+
+PRUNEFS="NFS nfs nfs4 rpc_pipefs afs binfmt_misc proc smbfs autofs iso9660 ncpfs coda devpts ftpfs
+
+devfs mfs shfs sysfs cifs lustre_lite tmpfs usbfs udf"
+
+-------------------------------------------------------------------------
+
+第一行PRUNE_BIND_MOUNTS="yes"的意思是: 是否进行限制搜索.
+
+第二行 # PRUNENAMES=".git .bzr .hg .svn"表示对哪些后缀的文件排除检索, 也就是列在这里面的后缀的
+
+文件跳过不进行检索. 不同后缀之间用空格隔开. 这个功能默认是关闭的(用#注释掉了), 如果需要打开需将
+
+#去掉.
+
+第三行是排除检索的路径, 即列出的路径下的文件和子文件夹均跳过不进行检索. 其中/media目录被屏蔽掉了.
+
+第四行是排除检索的文件系统类型, 即列出的文件系统类型不进行检索.
+
+只需要将第三行中的/meida删除即可. 修改为PRUNEPATHS="/tmp /var/spool ", 重新运行updatedb,
+
+再进行locate即可以对原来挂载在/media下的windows ntfs分区进行搜索.
+
+打开笔记本摄像头软件：1 opencv，2 cheese
+
+参考『Keyboard shortcut for open terminal here in thunar』[1]
+
+
+在 ganiserb/thunar-terminal 下载脚本。
+将脚本放在 $PATH 包含的目录下，为该脚本配置系统快捷键即可。
+
+若在路径选择器为路径栏而不是工具栏时，可能出现打开的终端始终在用户主目录下的问题。
+参看博文[1]
+
+下的评论，
+将Location=$(xclip -o)
+移到xdotool key --window "$ActiveWinID" --clearmodifiers "Ctrl+c"
+和xdotool key --window "$ActiveWinID" --clearmodifiers "Return"之间
+可以解决这个问题。
+在当前窗口打开终端的命令,exo-open --working-directory %f --launch TerminalEmulator.设置方法:窗口界面,进入编辑菜单,自定义动作,有一个从这里打开命令,制定相应的快捷键就可以了.
+
+archlinux手动安装字体及oh-my-zsh的安装
+1.archlinux手动安装字体的方式：
+
+复制字体文件到/usr/share/fonts/或者~/.local/share/fonts/中，执行fc-cache -fv（f参数：force，v参数：view）
+
+2.oh-my-zsh安装：curl -L http://install.ohmyz.sh | sh
+
+3.可以到~/oh-my-zsh/themes/中查看现有的主题。推荐agnoster。
+
+4.设置主题为agnoster：编辑～/.zshrc，将ZSH-THEME项替换为agnoster
+
+5.注意agnoster主题需要几个特殊字体的支持，可以从这里下载：https://gist.github.com/qrush/1595572
+cirno_⑨
+如果你想在任何时候升级ohmyzsh，你只需要运行：upgrade_oh_my_zsh
+解决archlinux下QT程序，以及wineQQ无法输入中文（.xinitrc）
+昨天安了i3wm,发现fcitx在很多程序中无法输入中文，nixnote2，还有ss-qt5
+查了wiki，明明有在~/.xinitrc中加入
+export XMODIFIERS=@im=fcitx
+export QT_IM_MODULE=fcitx
+export GTK_IM_MODULE=fcitx
+ 但是不起效，查了wiki也是各种不行，后来才知道要把这三行放在~/.xinitrt中exec行前才会生效
+而在wineQQ主要是其locale环境不为中文，而fcitx需要在locale为中文的情况下才能生效，所以是需要建立一个.sh文件
+输入
+
+#!/bin/sh
+env locale=zh_CN
+export XIM="fcitx"
+export XMODIFIERS="@im=fcitx"
+export GTK_IM_MODULE="fcitx"
+export QT_IM_MODULE="fcitx"
+wine /home/*/.wine/drive_c/Program\ Files\/QQ/Bin/QQ.exe
+其中，*为user的名称，而后面的路径应视情况改动.
+P.S. 运行sh时可以将其至于后台运行
+
+搜狗输入法安装的方法
+
+1.控制台分别输入以下指令
+
+sudo pacman -S fcitx
+
+sudo pacman -S fcitx-configtool
+
+sudo pacman -S fcitx-gtk2 fcitx-gtk3
+
+sudo pacman -S fcitx-qt4 fcitx-qt5
+
+sudo pacman -S fcitx-sogoupinyin
+2.添加输入法配置文件
+sudo nano ~/.xprofile
+3.添加以下内容
+export GTK_IM_MODULE=fcitx
+
+export QT_IM_MODULE=fcitx
+
+export XMODIFIERS="@im=fcitx"
+4.控制台输入 reboot ，或者手动重启
+
+aur报错（错误：一个或多个文件没有通过有效性检查）解决办法:
+我们从yay或者pamac等aur助手里安装某个软件常常会因为签名检查验证无法通过而安装失败，这种情况也常常出现，尤其是deepin-wine-wechat以及deepin-wine-tim，很有可能因为官方的客户端升级了，不是之前的那个版本，验证就无法通过。
+出现了这种情况，要么我们跳过验证进行安装，要么就不用他。linux里没有tim总感觉少了什么，必须安装上
+##解决方法
+1.编辑pkgbuild文件（可以用pamac里搜索对应的aur软件进入软件详情界面，点击构建文件，直接修改）
+2.找到对应的验证部分，把里面的验证的码修改为SKIP，SKIP一定要是大写（md5sums sha1sums sha256sums sha224sums, sha384sums, sha512sums b2sums）如:sha256sums=('SKIP')
+3.点击构建就能够成功了
+————————————————
+dmenu  一个非常小巧的桌面程序起动器程序.
+st终端.  st.suckless.org 上可以下载及安装.  修改config.mk的两行为/usr/include/X11,安装命令:sudo make clean install.
+git的图像版,lazygit,可以直接下载,以后试一试.
+
+
+
+
+
+-------------------------------------------------------------------------------------
+#我的定时程序20200411
+*  * * * *   ./shells/xiuxi2.sh
+-------------------------------------------------------------------------------------
+xiuxi2.sh
+#!/bin/sh
+#设定显示设备,让crontab能使用当前用户的显示器,否则系统不会显示,并会报错,no d        isplay:0.0
+export  DISPLAY=:0.0
+#设定终端的大小和形状等参数,并打开指定的命令
+xfce4-terminal --geometry=35X3 --hide-toolbar  --hide-menubar --hide-scrollbar -H -x /home/manjaro/shells/xiuxi.sh
+-------------------------------------------------------------------------------------
+xiuxi.sh文件
+#!/bin/sh
+#如果当前有play在播放,则先关闭他
+pkill play  >/dev/null 2>&1
+#显示文字内容
+echo -e "太晚了,该休息了.\n五分钟后关机,请保存好资料."
+#播放音乐
+/usr/bin/play /home/manjaro/b.mp3 >/dev/null 2>&1
+-------------------------------------------------------------------------------------
+开饭时,新建一个kaifan.sh,kaifan2.sh,加入任务中.
+kaifan2.sh
+#!/bin/sh
+#设定显示设备,让crontab能使用当前用户的显示器,否则系统不会显示,并会报错,no display:0.0
+export  DISPLAY=:0.0
+#设定终端的大小和形状等参数,并打开指定的命令
+xfce4-terminal --geometry=35X3 --hide-toolbar  --hide-menubar --hide-scrollbar -H -x /home/manjaro/shells/kaifan.sh 
+kaifan.sh
+#!/bin/sh
+#如果当前有play在播放,则先关闭他
+pkill play  >/dev/null 2>&1
+#显示文字内容
+echo -e "亲爱的,开饭了,别累坏了身体哦."
+#播放音乐
+/usr/bin/play /home/manjaro/shells/阆中之恋.mp3 >/dev/null 2>&1 
+
+-------------------------------------------------------------------------------------
+alsa设置默认声卡,可以在wiki alsa里面查找到有关文件,有时间再研究一下.
+建立文件~/.asoundrc,内容如下
+
+	pcm.!default {
+	type hw
+	card 1
+}
+
+ctl.!default {
+    type hw
+    card 1
+}
+
+alsa设置默认声卡
+原创 lophyxp 最后发布于2013-11-06 15:43:20 阅读数 11260 收藏
+展开
+
+首先说一下alsa的配置文件。alsa的配置文件是alsa.conf位于/usr/share/alsa目录下，通常还有/usr/share/alsa/card和/usr/share/alsa/pcm两个子目录用来设置card相关的参数，别名以及一些PCM默认设置。以上配置文件，我等凡夫从不用修改，修改它们是大神的工作。
+
+还有两个配置文件/etc/asound.conf和~/.asoundrc，它俩有效是因为它俩被alsa.conf引用。以下是alsa.conf的原文：
+
+# pre-load the configuration files
+
+@hooks [
+        {
+                func load
+                files [
+                        {
+                                @func concat
+                                strings [
+                                        { @func datadir }
+                                        "/alsa.conf.d/"
+                                ]
+                        }
+                        "/etc/asound.conf"
+                        "~/.asoundrc"
+                ]
+                errors false
+        }
+]
+
+
+然后说我遇到的问题。为了提高本人的台式机的性能，在没有换主板的情况下升级了CPU和显卡。CPU没有造成什么影响，显卡是淘来的微星R6750暴雪1G，芯片为AMD Radeon HD 6750。由于它提供了一个HDMI接口，该接口还支持音频输出，于是麻烦出现了，在gentoo下，声音不走板载的HDA VIA VT82xx集成声卡，不知道走到哪里出去了，反正我的耳机没有声音。
+
+找了好多文档，终于然我弄明白怎么回事了。
+
+首先，如果机器有多于一个声卡，可以用下面的命令显示出来：
+
+$ cat /proc/asound/cards
+ 0 [Generic        ]: HDA-Intel - HD-Audio Generic
+                      HD-Audio Generic at 0xfe9bc000 irq 25
+ 1 [VT82xx         ]: HDA-Intel - HDA VIA VT82xx
+                      HDA VIA VT82xx at 0xfeafc000 irq 17
+
+其次，每一个声卡有一个card number和一个device number，可以用下面命令显示出来：
+
+$ aplay -l
+**** List of PLAYBACK Hardware Devices ****
+card 0: Generic [HD-Audio Generic], device 3: HDMI 0 [HDMI 0]
+  Subdevices: 1/1
+  Subdevice #0: subdevice #0
+card 1: VT82xx [HDA VIA VT82xx], device 0: AD1986A Analog [AD1986A Analog]
+  Subdevices: 1/1
+  Subdevice #0: subdevice #0
+
+最后，alsa设置了一个defaults设备，音频播放软件默认使用defaults设备输出声音。defaults设备定义在alsa.conf中，内容如下：
+
+#
+# defaults
+#
+
+# show all name hints also for definitions without hint {} section
+defaults.namehint.showall off
+# show just basic name hints
+defaults.namehint.basic on
+# show extended name hints
+defaults.namehint.extended off
+#
+defaults.ctl.card 0
+defaults.pcm.card 0
+defaults.pcm.device 0
+defaults.pcm.subdevice -1
+……
+……
+……
+
+
+所以defaults会默认匹配card number和device number比较小的声卡。比如我这里（看上面aplay -l的输出显示），就会匹配到HDMI 0上。
+
+如果要修改，则修改/etc/asound.conf或~/.asoundrc。比如我要把defaults匹配到card 1,device 0上，则添加一下几行：
+
+$ sudo vim /etc/asound.conf 
+defaults.pcm.card 1
+defaults.pcm.device 3
+defaults.ctl.card 1
+
+
+参考文档：
+
+[csdn blog]alsa config
+[csdn blog]理解和使用Alsa的配置文件
+[arch wiki]设置默认声卡
+————————————————
+版权声明：本文为CSDN博主「lophyxp」的原创文章，遵循 CC 4.0 BY-SA 版权协议，转载请附上原文出处链接及本声明。
+原文链接：https://blog.csdn.net/lophyxp/java/article/details/14228735
+########################################################################################
+
+firefox is already running..在linux中使用firfox出现的问题
+原创 jijunyuan 最后发布于2014-05-04 10:14:25 阅读数 7565 收藏
+展开
+
+
+中文版显示：Firefox 已经在运行，但是没有响应。如要打开新窗口，您必须先关闭该 Firefox 进程，或者重新启动您的系统。
+英文版显示：Firefox is already running, but is not responding. To open a new window, you must first close the existing Firefox process, or restart your system.”
+解决方法如下：
+在linux的终端输入：
+firefox -profilemanager
+回车后会出现一个小窗口让你选择使用哪个 profile 来启动 firefox。
+首先将当前出错的Profile删除掉，然后新建个即可。
+————————————————
+版权声明：本文为CSDN博主「jijunyuan」的原创文章，遵循 CC 4.0 BY-SA 版权协议，转载请附上原文出处链接及本声明。
+原文链接：https://blog.csdn.net/jijunyuan/java/article/details/24963029
+
+-------------------------------------------------------------------------------------
+
+
+ [ Arch Linux ] Arch更新源高速源整理之测速并自动排序高速源 加快更新效率
+
+方法一：
+
+工具：rankmirrors 
+
+0x01 备份原来的源，并创建一个测试源
+1
+2
+	
+cd /etc/pacman.d
+cp mirrorlist mirrorlist.bak<br>cp mirrorlist mirrorlist.test
+
+0x02 测速与排序
+
+开始对新的源测速与排序，并将结果写入源列表文件
+1
+	
+rankmirrors -n 1 mirrorlist.test > mirrorlist
+
+好了 测试结束后会把结果会把速度最快的源放在最前面并写入到新的源列表，开始更新就可以了。
+
+0x03 语法
+
+它没有 man 手册，需要查看详细信息，请使用 --help
+1
+	
+rankmirrors  --help
+
+ 
+
+ 
+
+方法二：
+
+工具：Reflector
+
+与 Reflector 相比，rankmirrors 逊色多了。因为 Reflector 能从官方镜像列表获取最近更新的镜像，包括最新建立的镜像，即使这个镜像在 /etc/pacman.d/mirrorlist 里没有。也就是说，该工具是不受 mirrorlist 文件限制。此外，它还能获取刚刚与主服务器同步的镜像列表，并按照速度排序。
+
+先备份 /etc/pacman.d/mirrorlist
+1
+	
+cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
+
+下面命令将过滤官方镜像列表中的前 5 个镜像，按速度排列并覆盖 /etc/pacman.d/mirrorlist
+1
+	
+reflector -l 5 --sort rate --save /etc/pacman.d/mirrorlist
+
+下面这个命令会从官方镜像列表中获取200个最近同步过的源，并对这200个源进行大文件下载来，根据在你电脑里的下载速度进行排序，写入mirrorlist（强烈推荐）
+1
+	
+reflector --verbose -l 200 -p http --sort rate --save /etc/pacman.d/mirrorlist
+
+与上面的那条命令一样，不过只测美国的源
+1
+	
+reflector --verbose --country 'United States' -l 200 -p http --sort rate --save /etc/pacman.d/mirrorlist
+
+同样地。它没有 man 手册，需要查看详细信息，请使用 --help
+
+vim 没有编译系统粘贴板命令,自己进行修改,在vim+clipboard＋vim-gui(gvim)源码编译    (https://blog.csdn.net/duandianR/article/details/50445496?utm_medium=distribute.pc_relevant.none-task-blog-BlogCommendFromBaidu-3&depth_1-utm_source=distribute.pc_relevant.none-task-blog-BlogCommendFromBaidu-3)
+和   编译vim clipboard   (https://blog.csdn.net/u012335044/article/details/62044268),先下载,然后./configure --with-x   ,make,sudo make install
+
+nss>=3.51.1-1 及 lib32-nss>=3.51.1-1 更新需要手动干预
+
+nss 及 lib32-nss 两个包在版本 3.51.1-1 之前各缺失了一个动态库软链接。这个问题已经在 3.51.1-1 中修复，所以更新时需要覆盖 ldconfig 创建出的未被跟踪到的文件。如果你在升级时遇到如下报错：
+
+nss: /usr/lib/p11-kit-trust.so exists in filesystem
+lib32-nss: /usr/lib32/p11-kit-trust.so exists in filesystem
+
+那么请使用命令：
+
+pacman -Syu --overwrite /usr/lib\*/p11-kit-trust.so
+
+完成更新。
+公告, 新闻
+在配置页的开头我们可以看到[bar/example] example就是我们bar的名字。启动脚本中，polybar example，就是启动的example，注意名字一致。
+
+其次，minitor属性需要设置成你的监控器的名字。polybar多数不能显示，是因为这个原因。使用 polybar -m 命令，查看自己的设备名称。
+
+————————————————
+
+版权声明：本文为CSDN博主「盐焗咸鱼」的原创文章，遵循CC 4.0 BY-SA版权协议，转载请附上原文出处链接及本声明。
+
+原文链接：https://blog.csdn.net/qq_33215865/java/article/details/84720212
+
+声卡声音巨小
+
+安装好ALSA驱动后虽然有声音了，但是声音很小，即使调到最大音量也不大，环境稍微吵一点就听不清楚了。网上搜了很久，应该是驱动对网卡的支持不好造成的。如果不想重新编译驱动，那么可以用我的这个方法试试。
+
+首先确保安装alsa, alsa-oss, pulseaudio-alsa和pavucontrol。然后用pavucontrol来调节系统的最大音量。这样做可以提高音量，不过总感觉音质不是很好。
+ArchLinux更新时出现unkown trust怎么办
+
+如果ArchLinux使用pacman在更新时出现了“User is unknown trust, installation failed“这样的错误，多半是签名的key出现了问题。我也碰到了一次这样的问题。这其实不是问题，绝大多数正常使用的系统应该是需要升级archlinux-keyring了。
+
+    pacman -S archlinux-keyring
+
+如果不是这个问题，就更新一下签名：
+
+    pacman-key --refresh-keys
+
+如何在archlinux里面安装下载好的.deb软件?
+思路是在archlinux  aur里面有一个软件debtap,功能是把.deb文件转换为pacman -U可以安装的二进制软件包.
+所以,先要yaourt -S debtap.然后这个软件提示必须更新后才可以使用,debtap -U,更新完毕后使用方法是debtap 软件名.deb,根据提示操作,最后pacman -U 转换后的软件名.gz.
+
+提拉没有米苏的博客地址 https://www.cnblogs.com/cherish010/p/8425742.html
+
+
+ 查看文件夹里的文件的数量
+1、查看文件夹里文件的数量
+ ls -l|grep "^-"|wc -l
+2、查看文件下文家目录的数量
+ ls -l|grep "^d"|wc -l
+3、查看文件夹里文件的数量 包含子文件里的文件
+ ls -lR|grep "^-"|wc -l
+
+du-查看文件夹大小-并按大小进行排序
+某天，我想检查一下电脑硬盘的的使用情况，作为一个命令控，废话少说，开始吧：
+使用df 命令查看当前磁盘使用情况：
+jack@jiaobuchong:~$ df -lh
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda3        18G  5.7G   11G  35% /
+udev            2.7G  4.0K  2.7G   1% /dev
+tmpfs           553M  916K  552M   1% /run
+none            5.0M     0  5.0M   0% /run/lock
+none            2.7G  488K  2.7G   1% /run/shm
+/dev/sda2       946M  128M  754M  15% /boot
+/dev/sda1        93G   87G  5.5G  95% /media/2AA64C7FA64C4D8F_
+下面du命令就上场了：
+jack@jiaobuchong:~$ pwd
+/home/jack
+jack@jiaobuchong:~$ du -sh 
+1.9G	.
+jack@jiaobuchong:~$ cd ..
+jack@jiaobuchong:/home$ du -sh jack/
+1.9G	jack/
+jack@jiaobuchong:/home$ du -h --max-depth=0 jack/
+1.9G	jack/
+能看到上边得到的相同的结果吧，
+  -s, --summarize display only a total for each argument， -s这个参数的作用就是仅显示总计，即当前文件夹的大小。
+jack@jiaobuchong:~$ du -sh *
+170M	Desktop
+452K	Documents
+161M	Downloads
+12K	examples.desktop
+833M	installed-software
+284K	learngit
+4.0K	Music
+4.7M	Pictures
+3.2M	program_pratice
+4.0K	Public
+112K	session
+4.0K	Templates
+4.0K	Videos
+* 可以将当前目录下所有文件的大小给列出来。那要将这些列出来的文件按照从大到小的方式排序呢？
+jack@jiaobuchong:~$ du -sh * | sort -nr
+833M	installed-software
+452K	Documents
+284K	learngit
+170M	Desktop
+161M	Downloads
+112K	session
+12K	examples.desktop
+4.7M	Pictures
+4.0K	Videos
+4.0K	Templates
+4.0K	Public
+4.0K	Music
+3.2M	program_pratice
+
+找sort 来帮个忙就可以了。呵呵！这个排序不正常哦，都是因为-h参数的原因，
+
+jack@jiaobuchong:~$ du -s * | sort -nr 
+852756	installed-software
+173868	Desktop
+164768	Downloads
+4724	Pictures
+3236	program_pratice
+452	Documents
+284	learngit
+112	session
+12	examples.desktop
+4	Videos
+4	Templates
+4	Public
+4	Music
+这样就正常排序了。
+du -s * | sort -nr | head 选出排在前面的10个，
+du -s * | sort -nr | tail 选出排在后面的10个。
+
+如何将一个文件设置为不允许删除？
+安装chattr程序
+用sudo权限下达，sudo chattr +a  文件名。
+解除设置：sudo sudo chattr -a 文件名。
+
+今天抱着好玩的心态google了一下终端浏览器，找到了三款比较有名的，w3m , links2 ,lynx .然后都试了一下，还是觉得w3m最好用。
+w3m在ubuntu10.10里集成了，如果没有可以使用 sudo apt-get install w3m 安装，要想让他支持图片还得安装 w3m-img。 sudo apt-get install w3m w3m-img 即可
+w3m对中文的支持很好，没出现乱码，而那两款都会有乱码，很不方便
+如果出现乱码，可以用w3m打开任意网页，键盘键入o，然后将显示语言调整为chinese
+如果你的locale不是gbk的话还是会乱码的。所以运行 export LC_ALL=zh_CN.GBK
+
+如图，在使用输入窗口时，只需将光标移至相应位置，按回车，然后会在终端左下角显示text：再输入你想输入的文字即可，很方便。
+w3m支持鼠标拖拽功能
+说些w3m的基本键 
+
+alacritty --workding-directory %f
+
+编译的时候出现问题：
+
+Vargen.c:551: fatal error: error writing to /tmp/ccybwTg3.s: No space left on device
+
+主要是系统 /tmp/空间不足引起的，tmp文件夹空间不足了，不能满足编译的需求，编译的中间文件不能写入。
+
+解决办法 ：你可以在空间充足的地方mkdir 文件夹——你可以使用的文件夹,例如：mkdir /home/username/tmp
+
+为了是设置生效，需要设置环境变量，只要export TMPDIR=/home/username/tmp，编辑完成记得source ~/.bashrc
+
+这样就不会出现 tmp文件夹不够用的情况。
+设置我的git
+先安装git  pacman -S git
+设置自己的git和网页上的git互通。
+git config --global user.name "your name"
+git config --global user.email "your email"
+注意：--global 选项表示。这台机器上所有的git仓库都会使用这个配置，当然你也可以对某个仓库指定不同的用户名和email。
+
+ 
+【Github】Git客户端停用账号密码登录的解决方法
+2020-12-15-token-authentication-requirements-for-git-operations/
+1、修改为token的动机,近年来，GitHub 客户受益于 GitHub.com 的许多安全增强功能，例如双因素身份验证、登
+录警报、经过验证的设备、防止使用泄露密码和 WebAuthn 支持。这些功能使攻击者更难
+获取在多个网站上重复使用的密码并使用它来尝试访问您的 GitHub 帐户。尽管有这些改
+进，但由于历史原因，未启用双因素身份验证的客户仍能够仅使用其GitHub 用户名和密码
+继续对 Git 和 API 操作进行身份验证。
+
+从 2021 年 8 月 13 日开始，我们将在对 Git 操作进行身份验证时不再接受帐户密码，
+并将要求使用基于令牌（token）的身份验证，例如个人访问令牌（针对开发人员）或
+OAuth 或 GitHub 应用程序安装令牌（针对集成商） GitHub.com 上所有经过身份验证的
+Git 操作。您也可以继续在您喜欢的地方使用 SSH 密钥（如果你要使用ssh密钥可以参考
+）。
+
+2、修改为token的好处
+
+令牌（token）与基于密码的身份验证相比，令牌提供了许多安全优势：
+
+  • 唯一：令牌特定于 GitHub，可以按使用或按设备生成。
+
+  • 可撤销：可以随时单独撤销令牌，而无需更新未受影响的凭据。
+
+  • 有限：令牌可以缩小范围以仅允许用例所需的访问。
+
+  • 随机：令牌不需要记住或定期输入的更简单密码可能会受到的字典类型或蛮力尝试的
+    影响。
+
+解决方法
+
+1）在个人设置页面，点击Settings （官方参考）
+2）进入页面后，点击左侧的Developer settings
+3）点击Personal access tokens(个人访问令牌)
+4）点击Generate new token
+5）设置token的有效期，访问权限等
+选择要授予此令牌token的范围或权限。
+  • 要使用token从命令行访问仓库，请选择repo。
+  • 要使用token从命令行删除仓库，请选择delete_repo。
+  • 其他根据需要进行勾选。
+6）点击Generate token生成令牌
+如下是生成的令牌，记得保存，下次就看不到了。
+使用令牌
+用法一：直接将token作为密码使用
+在需要输入密码的地方，换成token，然后成功push代码！
+用法二：修改现有项目的url
+git remote set-url origin  https://<TOKEN>@github.com/<USERNAME>/<REPO>.git
+将<TOKEN>换成你自己得到的令牌。<USERNAME>是你自己github的用户名，<REPO>是你的项
+目名称，比如：
+git remote set-url origin  https://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@github.com/zhy001/xxx_project.git
+嫌麻烦的话，可以直接编辑项目中.git/config文件，在url中添加token，保存即可。
+用法三：在克隆项目的时候在github.com前面加个令牌
+git clone https://<TOKEN>@github.com/<USERNAME>/<REPO>.git
+其实，就是在git项目的配置文件中增加了记录：
+$ git clone https://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@github.com/zhy001/xxx_project.git
+$ cat xxx_project/.git/config
+    filemode = false
+    bare = false
+    logallrefupdates = true
+    symlinks = false
+    ignorecase = true
+[remote "origin"]
+    url = https://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@github.com/zhy001/xxx_project.git
+    fetch = +refs/heads/*:refs/remotes/origin/*
+[branch "master"]
+    remote = origin
+    merge = refs/heads/master
+因此，已克隆的项目修改.git/config中的url也是可以的。
+借鉴了一下，我就先在自己github网站上建立仓库，然后把自己的目录git init初始化，git add ，git commit -m “是的的的”，
+绑定当前的仓库到网上的仓库，例如 git remote add origin https://github.com/zhucanxin/ranger.git
+git config credential.helper store使记住密码，用gpg密码登录： git remote set-url origin  https://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@github.com/zhucanxin/ranger.git,设置登录密码，这个是对每一个仓库去设置的。最后推送git push -u origin main,成功。
+
+
+安装 nm-applet用于显示网速
+安装 nm-applet network-manager
+安装命令 sudo apt-get install network-manager-gnome
+卸载命令 sudo apt-get purge network-manager-gnome
+
+linux在vim保存时获取sudo权限
+:w !sudo tee %
+
+今天在研究mutt,按照bili站上的说明操作,先制作密码如下
+GnuPG 需要构建用户标识以辨认您的密钥。
+
+真实姓名： zhucanxin
+电子邮件地址： zhucanxin1@163.com
+注释： 163
+您选定了此用户标识：
+    “zhucanxin (163) <zhucanxin1@163.com>”
+
+更改姓名（N）、注释（C）、电子邮件地址（E）或确定（O）/退出（Q）？ o
+我们需要生成大量的随机字节。在质数生成期间做些其他操作（敲打键盘
+、移动鼠标、读写硬盘之类的）将会是一个不错的主意；这会让随机数
+发生器有更好的机会获得足够的熵。
+我们需要生成大量的随机字节。在质数生成期间做些其他操作（敲打键盘
+、移动鼠标、读写硬盘之类的）将会是一个不错的主意；这会让随机数
+发生器有更好的机会获得足够的熵。
+gpg: 密钥 740938B356D5A0D7 被标记为绝对信任
+gpg: 吊销证书已被存储为‘/home/manjaro/.gnupg/openpgp-revocs.d/12F522FD04ED6E89568DD579740938B356D5A0D7.rev’
+公钥和私钥已经生成并被签名。
+
+pub   rsa3072 2022-01-09 [SC]
+      12F522FD04ED6E89568DD579740938B356D5A0D7
+uid                      zhucanxin (163) <zhucanxin1@163.com>
+sub   rsa3072 2022-01-09 [E]
+
+我的zhucanxin1@163.com邮箱的授权码
+成功开启IMAP/SMTP服务，在第三方客户端登录时，登录密码输入以下授权密码
+EFDRPZZHEOGOXLIO
+
+授权密码只显示一次
+
+使用设备 
+如办公电脑、手机客户端、家庭电脑等
+
+pacman -Qi 显示软件的详细信息
+pacman -Ql 显示软件的所有安装文件
+
+我的vimrc文件
+"vnoremap <C-c> "+y  #支持在visual模式下，通过C+c复制到系统剪切板
+"nnoremap <C-v> "+p  #支持在normal模式下，通过C+v复制到系统剪切板
+vnoremap <C-y> "+y  #支持在visual模式下，通过C+y复制到系统剪切板
+nnoremap <C-p> "+p  #支持在normal模式下，通过C+p复制到系统剪切板
+set mouse-=a
+syntax on
+"在行首加注释符号
+noremap <F10> <ESC>I#<ESC>
+set clipboard=unnamedplus  "使系统剪贴板用于vim
+set clipboard=unnamed "使vim剪贴板用于系统
+如何在 Arch Linux 中降级软件包
+作者： Sk 译者： LCTT MjSeven 
+| 2018-06-08 22:27   评论: 1    
+正如你了解的，Arch Linux 是一个滚动版本和 DIY（自己动手）发行版。因此，在经常更新时必须小心，特别是从 AUR 等第三方存储库安装或更新软件包。如果你不知道自己在做什么，那么最终很可能会破坏系统。你有责任使 Arch Linux 更加稳定。但是，我们都会犯错误，要时刻小心是很难的。有时候，你想更新到最新的版本，但你可能会被破损的包卡住。不要惊慌！在这种情况下，你可以简单地回滚到旧的稳定包。这个简短的教程描述了如何在 Arch Linux 中以及它的变体，如 Antergos，Manjaro Linux 中降级一个包，
+在 Arch Linux 中降级一个包
+在 Arch Linux 中，有一个名为 “downgrade” 的实用程序，可帮助你将安装的软件包降级为任何可用的旧版本。此实用程序将检查你的本地缓存和远程服务器（Arch Linux 仓库）以查找所需软件包的旧版本。你可以从该列表中选择任何一个旧的稳定的软件包并进行安装。
+该软件包在官方仓库中不可用，你需要添加非官方的 archlinuxfr 仓库。
+为此，请编辑 /etc/pacman.conf 文件：
+$ sudo nano /etc/pacman.conf
+添加以下行：
+[archlinuxfr]
+SigLevel = Never
+Server = http://repo.archlinux.fr/$arch
+保存并关闭文件。
+使用以下命令来更新仓库：
+$ sudo pacman -Sy
+然后在终端中使用以下命令安装 “Downgrade” 实用程序：
+$ sudo pacman -S downgrade
+示例输出：
+resolving dependencies...
+ looking for conflicting packages...
+Packages (1) downgrade-5.2.3-1
+Total Download Size: 0.01 MiB
+ Total Installed Size: 0.10 MiB
+:: Proceed with installation? [Y/n]
+“downgrade” 命令的典型用法是：
+$ sudo downgrade [PACKAGE, ...] [-- [PACMAN OPTIONS]]
+让我们假设你想要将 opera web 浏览器 降级到任何可用的旧版本。
+为此，运行：
+$ sudo downgrade opera
+此命令将从本地缓存和远程镜像列出所有可用的 opera 包（新旧两种版本）。
+示例输出：
+Available packages:
+ 1) opera-37.0.2178.43-1-x86_64.pkg.tar.xz (local)
+ 2) opera-37.0.2178.43-1-x86_64.pkg.tar.xz (remote)
+ 3) opera-37.0.2178.32-1-x86_64.pkg.tar.xz (remote)
+ 4) opera-36.0.2130.65-2-x86_64.pkg.tar.xz (remote)
+ 5) opera-36.0.2130.65-1-x86_64.pkg.tar.xz (remote)
+ 6) opera-36.0.2130.46-2-x86_64.pkg.tar.xz (remote)
+ 7) opera-36.0.2130.46-1-x86_64.pkg.tar.xz (remote)
+ 8) opera-36.0.2130.32-2-x86_64.pkg.tar.xz (remote)
+ 9) opera-36.0.2130.32-1-x86_64.pkg.tar.xz (remote)
+ 10) opera-35.0.2066.92-1-x86_64.pkg.tar.xz (remote)
+ 11) opera-35.0.2066.82-1-x86_64.pkg.tar.xz (remote)
+ 12) opera-35.0.2066.68-1-x86_64.pkg.tar.xz (remote)
+ 13) opera-35.0.2066.37-2-x86_64.pkg.tar.xz (remote)
+ 14) opera-34.0.2036.50-1-x86_64.pkg.tar.xz (remote)
+ 15) opera-34.0.2036.47-1-x86_64.pkg.tar.xz (remote)
+ 16) opera-34.0.2036.25-1-x86_64.pkg.tar.xz (remote)
+ 17) opera-33.0.1990.115-2-x86_64.pkg.tar.xz (remote)
+ 18) opera-33.0.1990.115-1-x86_64.pkg.tar.xz (remote)
+ 19) opera-33.0.1990.58-1-x86_64.pkg.tar.xz (remote)
+ 20) opera-32.0.1948.69-1-x86_64.pkg.tar.xz (remote)
+ 21) opera-32.0.1948.25-1-x86_64.pkg.tar.xz (remote)
+ 22) opera-31.0.1889.174-1-x86_64.pkg.tar.xz (remote)
+ 23) opera-31.0.1889.99-1-x86_64.pkg.tar.xz (remote)
+ 24) opera-30.0.1835.125-1-x86_64.pkg.tar.xz (remote)
+ 25) opera-30.0.1835.88-1-x86_64.pkg.tar.xz (remote)
+ 26) opera-30.0.1835.59-1-x86_64.pkg.tar.xz (remote)
+ 27) opera-30.0.1835.52-1-x86_64.pkg.tar.xz (remote)
+ 28) opera-29.0.1795.60-1-x86_64.pkg.tar.xz (remote)
+ 29) opera-29.0.1795.47-1-x86_64.pkg.tar.xz (remote)
+ 30) opera-28.0.1750.51-1-x86_64.pkg.tar.xz (remote)
+ 31) opera-28.0.1750.48-1-x86_64.pkg.tar.xz (remote)
+ 32) opera-28.0.1750.40-1-x86_64.pkg.tar.xz (remote)
+ 33) opera-27.0.1689.76-1-x86_64.pkg.tar.xz (remote)
+ 34) opera-27.0.1689.69-1-x86_64.pkg.tar.xz (remote)
+ 35) opera-27.0.1689.66-1-x86_64.pkg.tar.xz (remote)
+ 36) opera-27.0.1689.54-2-x86_64.pkg.tar.xz (remote)
+ 37) opera-27.0.1689.54-1-x86_64.pkg.tar.xz (remote)
+ 38) opera-26.0.1656.60-1-x86_64.pkg.tar.xz (remote)
+ 39) opera-26.0.1656.32-1-x86_64.pkg.tar.xz (remote)
+ 40) opera-12.16.1860-2-x86_64.pkg.tar.xz (remote)
+ 41) opera-12.16.1860-1-x86_64.pkg.tar.xz (remote)
+select a package by number:
+只需输入你选择的包号码，然后按回车即可安装。
+就这样。当前安装的软件包将被降级为旧版本。
+另外阅读：在 Arch Linux 中如何将所有软件包降级到特定日期
+那么，如何避免已损坏的软件包并使 Arch Linux 更加稳定？
+在更新 Arch Linux 之前查看 Arch Linux 新闻和论坛，看看是否有任何已报告的问题。过去几周我一直在使用 Arch Linux 作为我的主要操作系统，以下是我在这段时间内发现的一些简单提示，以避免在 Arch Linux 中安装不稳定的软件包。
+避免部分升级。这意味着永远不要运行 pacman -Sy <软件包名称>。此命令将在安装软件包时部分升级你的系统。相反，优先使用 pacman -Syu 来更新系统，然后使用 package -S <软件包名称> 安装软件包。
+避免使用 pacman -Syu -force 命令。-force 标志将忽略程序包和文件冲突，并且可能会以破损的程序包或损坏的系统结束。
+不要跳过依赖性检查。这意味着不要使用 pacman -Rdd <软件包名称>。此命令将在删除软件包时避免依赖性检查。如果你运行这个命令，另一个重要的包所需的关键依赖也可以被删除。最终，它会损坏你的 Arch Linux。
+定期备份重要数据和配置文件以避免数据丢失总是一个好习惯。
+安装第三方软件包和 AUR 等非官方软件包时要小心。不要安装那些正在经历重大发展的软件包。
+有关更多详细信息，请查看 Arch Linux 维护指南。
+我不是 Arch Linux 专家，我仍然在学习如何使它更稳定。如果你有任何技巧让 Arch Linux 保持稳定和安全，请在下面的评论部分保持稳定和安全告诉我，我将洗耳恭听。
+希望这可以有帮助。目前为止这就是全部了。我很快会再次在这里与另一篇有趣的文章。在此之前，请继续关注。
+干杯！
+
+via: https://www.ostechnix.com/downgrade-package-arch-linux/
+作者：SK 选题：lujun9972 译者：MjSeven 校对：wxy
+本文由 LCTT 原创编译，Linux中国 荣誉推出￼
+
+最新评论
+发表评论
+来自美国的 Chrome 84.0|Windows 10 用户 2020-08-04 11:171 赞 回复
+这个软件找不到啊
+译自：ostechnix.com作者： Sk
+原创：LCTT https://linux.cn/article-9730-1.html译者： MjSeven
+
+本文由 LCTT 原创翻译，Linux 中国首发。也想加入译者行列，为开源做一些自己的贡献么？欢迎加入 LCTT！
+翻译工作和译文发表仅用于学习和交流目的，翻译工作遵照 CC-BY-SA 协议规定，如果我们的工作有侵犯到您的权益，请及时联系我们。
+欢迎遵照 CC-BY-SA 协议规定 转载，敬请在正文中标注并保留原文/译文链接和作者/译者等信息。
+文章仅代表作者的知识和看法，如有不同观点，请楼下排队吐槽 :D
+
+上一篇：面向数据科学的 Anaconda Python 入门下一篇：探秘“栈”之旅（II）：结语、金丝雀和缓冲区溢出
+LCTT 译者
+￼
+￼ MjSeven 💎
+共计翻译： 163.0 篇 | 共计贡献： 1419 天
+贡献时间：2018-01-30 -> 2021-12-19访问我的 LCTT 主页 | 在 GitHub 上关注我
+
+
+相关阅读
+arch
+2019-03-30使用 Arch Linux 镜像列表管理器来管理你的镜像
+2019-04-08Arch-Wiki-Man：一个以 Linux Man 手册样式离线浏览 Arch Wiki 的工具
+2020-03-216 个用于 Arch Linux 的最佳 AUR 助手
+2020-05-28如何在 Arch Linux 上正确安装和设置 KDE Plasma？
+2020-08-18Manjaro 和 Arch Linux 有何不同，哪个更
+
+
+
+recoll 图形界面下的文本内容搜索软件
+dia  流程图绘制工具
+gksu  在图形界面下让软件使用超级用户权限
+ncdu  可以查看文件夹文件带大小的软件，好用
+狗屁不通文章编写器下载和安装，git clone https://github.com/menzi11/BullshitGenerator.git，然后进入文件所在位置，运行python BullshiftGenerator.py + 文章题目
+
+autojump
+autojump 官网
+
+作用 目录间快速跳转,不用再一直 cd 了 😁
+
+使用
+
+使用 autojump 的缩写 j
+
+cd 命令进入 ~/user/github/Youthink 文件夹，下一次再想进入 Yourhink 文件夹的时候,直接 j youthink 即可
+或者只输入 youthink 的一部分 youth 都行
+
+删除无效路径
+
+j --purge 无效路径
+打开 muisc 文件夹
+
+jo music
+多个参数一起使用 打开 /home/user/work/inbox
+
+j w in
+和 Z 不同 autojump 不是 zsh 内置的插件，需要额外安装。
+
+首先安装 autojump，如果你用 Mac，可以使用 brew 安装：
+
+brew install autojump
+如果是 Linux，可以使用 git 安装，比如：
+
+git clone git://github.com/joelthelion/autojump.git
+进入目录，执行
+
+./install.py
+最后把以下代码加入 .zshrc：
+
+[[ -s ~/.autojump/etc/profile.d/autojump.sh ]] && . ~/.autojump/etc/profile.d/autojump.sh
+Z
+如果你不想额外安装 autojump
+
+可以使用 oh-my-zsh 内置的类似组件 Z
+
+和 autojump 除了名字不一样，基本雷同。
+
+z -x 无效路径
+效果图
+
+Vim插件之vimwiki
+
+SorelCheung
+
+于 2017-06-10 22:13:53 发布
+
+4387
+ 收藏
+分类专栏： Vim 文章标签： workflow vimwiki org-mode vim todo-list
+版权
+
+Vim
+专栏收录该内容
+48 篇文章1 订阅
+订阅专栏
+Emacs最强大的一个插件应该就是Org-mode了，在Vim上虽然也有vim-orgmode，但是翻阅一遍文档你就会发现一大堆的”Not yet implemented in vim-orgmode”，虽然vim-orgmode不能与Emacs的Org-mode相提并论，但这并不意味着Vim就没有能媲美Org-mode的插件，它就是vimwiki。
+vimwiki能够写笔记构建工作流，写todo-list，写日记，写个人wiki，并且除了支持vimwiki自身的语法以外还支持Markdown和MediaWiki（Wikipedia的语法）的语法，但是只有vimwiki可以导出为HTML。这款插件属于开箱即用型，不需要太多的配置，使用方法和vimwiki的语法可以查阅自带的文档，英文不好可以看国内志愿者翻译的中文版vimwiki.vim.cnx(https://github.com/vimcn/vimwiki.vim.cnx)，虽然六年没更新了，但内容变化不算太大，下面是常见的按键及其功能
+
+[count]ww打开第[count]个wiki索引文件
+[count]wt在新标签页中打开第 [count]个wiki索引文件
+ws列出可选择的wiki列表
+[count]wi打开第[count]个wiki项目的日记首页
+[count]ww打开今天第[count]个wiki日记文件
+[count]wt在新标签页中打开今天第[count]个wiki日记文件
+<Leader>wh转换当前wiki页面为HTML
+<Leader>whh转换当前wiki页面为HTML并在浏览器中打开
+<Cr>进入（必要时创建新的）wiki词条
+<Backspace>回到上一个wiki词条
+<Tab>寻找并将光标定位到本页的下一个wiki词条
+<Leader>wd删除光标所在的wiki词条
+————————————————
+版权声明：本文为CSDN博主「SorelCheung」的原创文章，遵循CC 4.0 BY-SA版权协议，转载请附上原文出处链接及本声明。
+原文链接：https://blog.csdn.net/Demorngel/article/details/73008647
+
+fcitx输入法的一些设置
+快捷键
+部分常用默认快捷键：
+Ctrl+Space 激活输入法
+左Shift 临时切换到英文
+Ctrl+Shift 输入法间切换
+-/= 向前/向后翻页
+Shift+Space 全角、半角切换
+注意： 您可以在配置界面的全局配置中修改这些快捷键。
+Vim
+如果您经常在 Vim 下使用 Fcitx, 可以安装 vim-fcitxAUR 插件，或者在 ~/.vimrc 添加如下代码。以退出插入模式时，自动关闭 Fcitx, 反之则反：
+"##### auto fcitx  ###########
+let g:input_toggle = 1
+function! Fcitx2en()
+   let s:input_status = system("fcitx-remote")
+   if s:input_status == 2
+      let g:input_toggle = 1
+      let l:a = system("fcitx-remote -c")
+   endif
+endfunction
+
+function! Fcitx2zh()
+   let s:input_status = system("fcitx-remote")
+   if s:input_status != 2 && g:input_toggle == 1
+      let l:a = system("fcitx-remote -o")
+      let g:input_toggle = 0
+   endif
+endfunction
+
+set ttimeoutlen=150
+"退出插入模式
+autocmd InsertLeave * call Fcitx2en()
+"进入插入模式
+autocmd InsertEnter * call Fcitx2zh()
+"##### auto fcitx end ######
+注意： 由于要调用外部程序，这将明显拖慢会反复进出插入模式的映射。建议改写相关映射，用带 Python 支持的 Vim 加以配合 fcitx.vim 亦可改善效率。
+剪贴板
+Fcitx 自带剪贴板，其快捷键为 Ctrl + ;, 小小功能拯救世界。
+reflector --country China --save /etc/pacman.d/mirrorlist

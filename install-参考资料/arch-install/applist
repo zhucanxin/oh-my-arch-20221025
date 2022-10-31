@@ -1,0 +1,236 @@
+#!/bin/bash
+SCRIPT_NAME=${0##*/}
+displayHelp() {
+    cat <<EOF
+Archlinux APP install list
+Usage: $SCRIPT_NAME -[OPTION]
+Pattern selection and interpretation:
+-i, --install-app       Install common software
+-d, --install-de        Install desktop environment
+-a, --install-aur       Install software in AUR
+-r, --remove            Remove package
+-h. --help              Display help
+EOF
+}
+# 预先要安装的软件
+# pacman -S --noconfirm --need sudo wget ntfs-3g archlinuxcn-keyring
+
+# 安装图形界面和驱动
+DE_packages=(
+    # x服务
+    xorg-server
+    xorg-xinit
+
+    # 声卡驱动
+    alsa-utils
+    pulseaudio-alsa
+
+    # 显卡驱动
+    mesa
+    xf86-video-vesa
+    # xf86-video-ati
+    # xf86-video-intel
+    # xf86-video-nouveau
+    # xf86-video-nv
+    # xf86-input-synaptics #笔记本触摸版驱动
+
+    # 桌面坏境
+    xfce4
+    i3
+
+    # 字体
+    wqy-zenhei
+    wqy-microhei
+    adobe-source-han-sans-cn-fonts #思源黑体
+    noto-fonts
+    noto-fonts-emoji
+    powerline-fonts
+
+    # 图标包/主题
+    adapta-gtk-theme
+    numix-circle-icon-theme-git
+    numix-icon-theme-git
+    # paper-gtk-theme-git
+    # gtk-theme-arc-git
+
+    # 主题修改
+    lxappearance-gtk3
+    qtcurve-gtk2
+    qtcurve-qt5
+    qtcurve-utils
+
+    # 渲染合成器
+    picom
+    xcompmgr
+
+    # 桌面组件
+    plank
+    pnmixer-gtk3
+    rofi
+    thunar
+    thunar-archive-plugin
+    thunar-media-tags-plugin
+    thunar-volman
+
+    # xfce桌面组件
+    xfce4-taskmanager
+    xfce4-power-manager
+    xfce4-notifyd
+    xfce4-terminal
+    mousepad
+    xfburn
+    xfce4-artwork
+    xfce4-battery-plugin
+    xfce4-datetime-plugin
+    xfce4-fsguard-plugin
+    xfce4-genmon-plugin
+    xfce4-linelight-plugin
+    xfce4-mailwatch-plugin
+    xfce4-mount-plugin
+    xfce4-netload-plugin
+    xfce4-notes-plugin
+    xfce4-notifyd
+    xfce4-pulseaudio-plugin
+    xfce4-screenshooter
+    xfce4-sensors-plugin
+    xfce4-systemload-plugin
+    xfce4-taskmanager
+    xfce4-time-out-plugin
+    xfce4-timer-plugin
+    xfce4-verve-plugin
+    xfce4-wavelan-plugin
+    xfce4-whiskermenu-plugin
+    xfce4-xkb-plugin
+)
+
+APP_packages=(
+    # shell
+    zsh
+    zsh-completions
+    bash-completion
+
+    # 压缩软件
+    zip
+    unzip-natspec
+    p7zip
+    unrar
+    # file-roller
+
+    #下载工具
+    yay #AUR
+    aria2
+    transmission-gtk
+
+    #开发
+    git
+    nodejs
+    npm
+
+    #编辑器
+    code
+    #neovim
+    vim
+    vim-fcitx
+    vim-airline
+    vim-airline-themes
+    powerline
+    vim-youcompleteme-git #可能在AUR里
+
+    #播放器
+    netease-cloud-music
+    smplayer
+    mplayer
+
+    #浏览器
+    firefox-i18n-zh-cn
+    google-chrome
+
+    # 输入法
+    fcitx-qt5
+    fcitx-lilydjwg-git
+    fcitx-configtool
+    fcitx-sogoupinyin #搜狗拼音可能在AUR里
+
+    # 其它
+    neofetch
+    screenfetch
+    feh              #用来设置壁纸
+    mcomix           #看图和漫画用的
+    geeqie           #看图用的
+    gimp             #代替ps
+    inkscape         #画图用的
+    fontforge        #精简字体用的
+    ydcv             #有道词典cli版
+    python-fonttools #字体子集化工具
+    ffmpeg
+    imagemagick #cli图片编辑器
+    # gptfdisk #分区
+    tree
+    # sigil #epub编辑器
+    gcolor2        #取色器
+    udevil udisks2 #自动装载U盘
+    gvfs           #自动挂载
+    gvfs-gphoto2
+    gvfs-mtp
+    numlockx #自动开启键盘的小键盘
+    # arch-packages-scripts
+
+    # 联网工具
+    rp-pppoe
+    rfkill
+    # 支持wifi
+    iw
+    wpa_supplicant
+    dialog
+
+    # 联网管理工具
+    networkmanager network-manager-applet nm-connection-editor gnome-keyring
+    # wicd wicd-gtk
+
+    # 科学上网
+    v2ray
+    qv2ray #archlinuxcn
+    # lantern #不知道还有没有用
+    # shadowsocks-qt5 shadowsocks #现在都用v2ray了
+)
+
+Remove_packages=(
+    # 移除xfce4-goodies等不需要的插件
+    orage
+    xfce4-cpufreq-plugin
+    xfce4-cpugraph-plugin
+    xfce4-dict
+    xfce4-eyes-plugin
+    xfce4-diskperf-plugin
+    xfce4-weather-plugin
+)
+
+AUR_packages=(
+    # rtlwifi_new-dkms # rtl系网卡有问题时试试这驱动
+    # 8192cu-dkms
+    # vim-colors-solarized-git
+    # unarchiver
+    oh-my-zsh-git           #在AUR里
+    qt5-styleplugins        #qt5主题修改
+    arch-silence-grub-theme #grub主题
+    # fcitx-sogoupinyin
+    # epubcheck
+)
+
+xfce4_panel_alpha() {
+    # 安装xfce4“沉浸式状态栏”
+    mkdir -p ~/program
+    cd ~/program
+    git init
+    git clone https://github.com/hwwwt/xfce4-panel-alpha.git
+    cd xfce4-panel-alpha
+    makepkg -si
+}
+
+case "$1" in
+'-i' | 'install-app') pacman -Syu --needed "${APP_packages[@]}" ;;
+'-d' | 'install-de') pacman -Syu --needed "${DE_packages[@]}" --ignore "${Remove_packages[@]}" ;;
+'-a' | 'install-aur') yaourt -S --noconfirm --needed "${AUR_packages[@]}" ;; #xfce4_panel_alpha ;;
+'-r' | 'remove') pacman -Rs "${Remove_packages[@]}" ;;
+'-h' | '--help' | *) displayHelp ;;
+esac

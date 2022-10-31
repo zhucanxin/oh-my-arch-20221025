@@ -1,0 +1,24 @@
+#!/bin/bash
+# grub重装脚本，用来识别并添加其他系统的grub引导项，系统完成安装后在arch-chroot后执行
+
+# 自行设定
+ESP=/dev/sda1 # EFI 分区
+
+install_grub() {
+    echo -e "grub will install at \e[1;46m$ESP\e[0m, Yes?"
+    read
+    # 挂载ESP分区
+    mkdir -p /boot/efi
+    mkdir -p /boot/efi/EFI/GRUB
+    mount "$ESP" /boot/efi
+
+    # 安装GRUB
+    pacman -S --noconfirm --needed dosfstools grub efibootmgr os-prober
+    grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=arch_grub --recheck # UEFI方式安装
+    # grub-install --recheck /dev/<目标磁盘> # BIOS方式安装
+    grub-mkconfig -o /boot/grub/grub.cfg
+    # grub-mkconfig -o /boot/efi/EFI/GRUB/grub.cfg
+    # vim /boot/efi/EFI/GRUB/grub.cfg
+    # vim /boot/grub/grub.cfg
+}
+install_grub

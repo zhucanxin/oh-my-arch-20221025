@@ -1,0 +1,62 @@
+#!/bin/bash
+# 还原配置文件和系统服务（安装后进入root账户执行）
+
+USERNAME='rabbit' # 填好你自己的用户名
+
+if [ "$USER" = 'root' ]; then
+    echo 'you must run this as root'
+    exit
+fi
+
+# 启用小键盘服务
+cp ./conf/numlock1to6.service /etc/systemd/system
+systemctl enable numlock1to6.service
+
+echo "tmpfs /tmp tmpfs size=2500m,mode=1777 0 0" >> /etc/fstab
+
+# inter显卡配置文件
+# X禁用垂直同步 (VSYNC)
+#cp ./conf/20-intel.conf /etc/X11/xorg.conf.d/
+
+# udisk2配置文件
+# storage组挂载u盘免输密码
+cp ./conf/50-udiskie.rules /etc/polkit-1/rules.d/
+
+# polkit配置文件
+# wheel组文件操作免输密码
+cp ./conf/49-nopasswd_global.rules /etc/polkit-1/rules.d/
+
+# 关掉蜂鸣器
+#sed -i 's/#set bell-style none/set bell-style visible/' /etc/inputrc
+
+# 重设更新时区与时间
+reset_time(){
+    timedatectl set-ntp true
+    ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+    timedatectl set-timezone Asia/Shanghai # 时区设置为 上海
+    hwclock --systohc --utc # 从当前系统时间设置硬件时钟并保持为 UTC 时间
+    #timedatectl set-local-rtc 0 # 硬件时间设置成 UTC
+    #timedatectl set-local-rtc 1 # 硬件时间设置成 RTC (本地时间)(不建议！)
+}
+
+enable_swapfile(){
+    # 启用swap文件，内存够大的别用swap了
+    fallocate -l "$SWAPFILE_SIZE" /swapfile # 创建一个所需大小的交换文件
+    chmod 600 /swapfile # 为交换文件设置权限：（交换文件全局可读是一个巨大的本地漏洞）
+    mkswap /swapfile # 创建好交换文件后，将其格式化
+    swapon /swapfile # 启用交换文件
+    echo "/swapfile none swap defaults 0 0" | tee -a /etc/fstab
+    pacman -S --noconfirm --needed systemd-swap
+    echo vm.swappiness=5 | tee -a /etc/sysctl.d/99-sysctl.conf
+    echo vm.vfs_cache_pressure=50 | tee -a /etc/sysctl.d/99-sysctl.conf
+    sysctl -p /etc/sysctl.d/99-sysctl.conf
+}
+
+# 启用systemd服务
+systemd_services=(
+    devmon@"$USERNAME".service # 启用udisks服务
+    NetworkManager
+    #wicd
+)
+systemctl enable "${systemd_services[@]}"
+enable_swapfile

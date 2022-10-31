@@ -1,0 +1,20 @@
+##
+## Arch Linux repository mirrorlist
+## Sorted by mirror score from mirror status page
+## Generated on 2016-09-30
+##
+
+## 网易开源镜像站
+Server = http://mirrors.163.com/archlinux/$repo/os/$arch
+
+## 重庆大学镜像站
+Server = http://mirrors.cqu.edu.cn/archlinux/$repo/os/$arch
+
+## 中国科学技术大学镜像站
+Server = http://mirrors.ustc.edu.cn/archlinux/$repo/os/$arch
+
+## 兰州大学开源社区镜像站
+# Server = http://mirror.lzu.edu.cn/archlinux/$repo/os/$arch
+
+## 哈尔滨工业大学开源镜像站
+# Server = http://run.hit.edu.cn/archlinux/$repo/os/$arch

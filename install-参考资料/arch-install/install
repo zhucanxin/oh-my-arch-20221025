@@ -1,0 +1,72 @@
+#!/bin/bash
+# 安装arch系统脚本,于livecd上运行
+
+# 自行设定分区的位置
+SYSTEM=/dev/sda5 # / 根目录
+HOME=/dev/sda6 # home 目录
+VAR=/dev/sda7 # var 目录
+SWAP=/dev/sda8 # swap 分区
+################
+
+displayMountPoint(){
+lsblk
+echo -e "Please confirm all mount points at right partition again.
+\e[1;46m$SYSTEM\e[0m -> \e[1;46m'/'\e[0m 
+\e[1;46m$HOME\e[0m -> \e[1;46m'/home'\e[0m 
+\e[1;46m$VAR\e[0m -> \e[1;46m'/var'\e[0m 
+
+ctrl + C to exit"
+#SWAP -> \e[1;46m$SWAP\e[0m
+read
+}
+
+displayMountPoint
+umount -R /mnt
+
+# 格式化分区
+#echo "是否格式化主目录分区"
+echo -e "\e[1;46m - Partition the disks of / ? - \e[0m"
+mkfs.ext4 "$SYSTEM"
+#echo "是否格式化 /home 目录分区"
+echo -e "\e[1;46m - Partition the disks of /home ? - \e[0m"
+mkfs.ext4 "$HOME"
+#echo "是否格式化 /var 目录分区"
+echo -e "\e[1;46m - Partition the disks of /var ? - \e[0m"
+mkfs.ext4 "$VAR"
+#mkswap "$SWAP"
+
+# 挂载分区
+mount "$SYSTEM" /mnt
+mkdir -p /mnt/home
+mkdir -p /mnt/var
+mount "$VAR" /mnt/var
+mount "$HOME" /mnt/home
+#swapon "$SWAP"
+
+# 更新国内镜像源
+cp ./mirrorlist /etc/pacman.d/mirrorlist
+pacman -Syy
+
+# 更新系统时间
+timedatectl set-ntp true
+
+# 安装基本文件系统
+pacstrap /mnt base linux linux-firmware
+
+# 配置fstab
+genfstab -p -U /mnt > /mnt/etc/fstab
+
+# 移动安装配置脚本
+cp ./setup /mnt/
+cp ./applist /mnt/
+
+# chroot
+arch-chroot /mnt /bin/bash
+
+# 移除安装配置脚本
+#rm /mnt/setup
+#rm /mnt/applist
+
+# umount -R /mnt
+
+# reboot

@@ -1,0 +1,42 @@
+#!/bin/bash
+#自用配置文件备份脚本
+
+SCRIPT_PATH="${0%/*}"
+bakdir="$PWD/dotfiles"
+
+dotfilelist=(
+.xinitrc
+.bash_profile
+.bashrc
+.gtkrc-2.0
+.profile
+.vimrc
+.zshrc
+.zprofile
+)
+
+conflist=(
+# xfce4
+user-dirs.dirs
+user-dirs.locale
+rofi
+i3
+i3status
+gtk-3.0
+)
+
+backup(){
+    cd "$HOME"
+    cp "${dotfilelist[@]}" "$bakdir"
+    cd "$HOME/.config"
+    cp "${conflist[@]}" "$bakdir/.config" -r
+    echo "完成"
+}
+
+if [ -z "$SCRIPT_PATH" ]; then
+    backup
+elif [ -d "$SCRIPT_PATH" ]; then
+    cd "$SCRIPT_PATH"
+    bakdir="$PWD/dotfiles"
+    backup
+fi

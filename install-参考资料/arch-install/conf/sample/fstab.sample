@@ -1,0 +1,11 @@
+# /dev/sdb4
+UUID=d4d38a65-3bcb-4df7-972e-5cd7e172b1c6	/         	ext4      	rw,relatime,data=ordered	0 1
+
+# /dev/sda6
+UUID=5a3da472-2a63-4bcf-94b5-0f1a616d1b58	/var      	ext4      	rw,relatime,data=ordered	0 2
+
+# /dev/sda5
+UUID=ddf1f3fd-70c8-4a2a-a724-e0dc348ded32	/home     	ext4      	rw,relatime,data=ordered	0 2
+
+/swapfile none swap defaults 0 0
+tmpfs /tmp tmpfs size=2500m,mode=1777 0 0
